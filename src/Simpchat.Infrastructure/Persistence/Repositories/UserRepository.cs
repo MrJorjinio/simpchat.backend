@@ -45,7 +45,7 @@ namespace Simpchat.Infrastructure.Persistence.Repositories
         public async Task<List<User>> SearchAsync(string term)
         {
             return await _dbContext.Users
-                .Where(u => EF.Functions.Like(u.Username, $"%{term}"))
+                .Where(u => EF.Functions.Like(u.Username, $"%{term}%"))
                 .ToListAsync();
         }
 

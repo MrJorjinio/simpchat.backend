@@ -19,9 +19,10 @@ namespace Simpchat.Web.Controllers
         private readonly IMessageService _messageService;
         private readonly IMessageReactionService _messageReactionService;
 
-        public MessageController(IMessageService messageService)
+        public MessageController(IMessageService messageService, IMessageReactionService messageReactionService)
         {
             _messageService = messageService;
+            _messageReactionService = messageReactionService;  // FIX: Added missing injection!
         }
 
         [HttpPost]

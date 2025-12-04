@@ -101,9 +101,6 @@ namespace Simpchat.Application.Features
             if (chat.PrivacyType == ChatPrivacyTypes.Private)
                 return Result.Failure(new Error("Group.Private", "Cannot join private group"));
 
-            if (user.HwoCanAddType == HwoCanAddYouTypes.Nobody)
-                return Result.Failure(new Error("User.PrivacyRestricted", "User has restricted who can add them to chats"));
-
             if (group.IsGroupMember(userId))
                 return Result.Failure(ApplicationErrors.User.NotParticipatedInChat);
 
@@ -247,12 +244,11 @@ namespace Simpchat.Application.Features
 
             foreach (var group in results)
             {
-                var chat = await _chatRepo.GetByIdAsync(group.Id);
-
-                if (chat != null && chat.PrivacyType == ChatPrivacyTypes.Public)
+                if (group.Chat != null && group.Chat.PrivacyType == ChatPrivacyTypes.Public)
                 {
                     modeledResults.Add(new SearchChatResponseDto
                     {
+                        EntityId = group.Id,
                         ChatId = group.Id,
                         AvatarUrl = group.AvatarUrl,
                         DisplayName = group.Name,
@@ -342,7 +338,7 @@ namespace Simpchat.Application.Features
                     },
                     Name = group.Name,
                     NotificationsCount = notificationsCount,
-                    Type = ChatTypes.Channel,
+                    Type = ChatTypes.Group,
                     UserLastMessage = lastUserSendedMessage?.SentAt
                 };
 

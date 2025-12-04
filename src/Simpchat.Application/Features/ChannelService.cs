@@ -103,9 +103,6 @@ namespace Simpchat.Application.Features
             if (chat.PrivacyType == ChatPrivacyTypes.Private)
                 return Result.Failure(new Error("Channel.Private", "Cannot join private channel"));
 
-            if (user.HwoCanAddType == HwoCanAddYouTypes.Nobody)
-                return Result.Failure(new Error("User.PrivacyRestricted", "User has restricted who can add them to chats"));
-
             if (channel.IsChannelSubscriber(userId))
                 return Result.Failure(ApplicationErrors.User.NotParticipatedInChat);
 
@@ -253,14 +250,15 @@ namespace Simpchat.Application.Features
 
             var modeledResults = new List<SearchChatResponseDto>();
 
+            // Use the included Chat entity to avoid N+1 queries
             foreach (var channel in results)
             {
-                var chat = await _chatRepo.GetByIdAsync(channel.Id);
-
-                if (chat != null && chat.PrivacyType == ChatPrivacyTypes.Public)
+                // Only return public channels in search results
+                if (channel.Chat != null && channel.Chat.PrivacyType == ChatPrivacyTypes.Public)
                 {
                     modeledResults.Add(new SearchChatResponseDto
                     {
+                        EntityId = channel.Id,
                         ChatId = channel.Id,
                         AvatarUrl = channel.AvatarUrl,
                         DisplayName = channel.Name,

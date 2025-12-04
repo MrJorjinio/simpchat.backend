@@ -23,6 +23,18 @@ namespace Simpchat.Web.Controllers
             _userService = userService;
         }
 
+        [HttpGet("me")]
+        [Authorize]
+        public async Task<IActionResult> GetMeAsync()
+        {
+            var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+
+            var response = await _userService.GetByIdAsync(userId, userId);
+            var apiResponse = response.ToApiResult();
+
+            return apiResponse.ToActionResult();
+        }
+
         [HttpGet("{id}")]
         [Authorize]
         public async Task<IActionResult> GetByIdAsync(Guid id)
@@ -60,7 +72,7 @@ namespace Simpchat.Web.Controllers
         }
 
         [HttpPut("me")]
-        [Authorize(Roles = "Admin")]
+        [Authorize]
         public async Task<IActionResult> UpdateMeAsync([FromForm]UpdateUserDto model, IFormFile? file)
         {
             var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));

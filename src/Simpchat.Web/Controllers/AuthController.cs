@@ -40,6 +40,7 @@ namespace Simpchat.Web.Controllers
         }
 
         [HttpPut("update-password")]
+        [Authorize]  // FIX: Added missing authorization!
         public async Task<IActionResult> UpdatePasswordAsync(UpdatePasswordDto updatePasswordDto)
         {
             var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));

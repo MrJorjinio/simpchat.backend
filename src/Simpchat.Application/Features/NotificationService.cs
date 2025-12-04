@@ -35,5 +35,29 @@ namespace Simpchat.Application.Features
 
             return Result.Success();
         }
+
+        public async Task<Result> SetMultipleAsSeenAsync(List<Guid> notificationIds)
+        {
+            if (notificationIds == null || notificationIds.Count == 0)
+            {
+                return Result.Success(); // No notifications to mark
+            }
+
+            var notifications = await _notificationRepo.GetMultipleByIdsAsync(notificationIds);
+
+            if (notifications == null || notifications.Count == 0)
+            {
+                return Result.Failure(ApplicationErrors.Notification.IdNotFound);
+            }
+
+            foreach (var notification in notifications)
+            {
+                notification.IsSeen = true;
+            }
+
+            await _notificationRepo.UpdateMultipleAsync(notifications);
+
+            return Result.Success();
+        }
     }
 }

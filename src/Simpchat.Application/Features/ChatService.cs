@@ -265,7 +265,8 @@ namespace Simpchat.Application.Features
                     SentAt = message.SentAt,
                     IsNotificated = await _notificationRepo.CheckIsNotSeenAsync(message.Id, userId),
                     NotificationId = notificationId ?? Guid.Empty,
-                    MessageReactions = messageReactionModels
+                    MessageReactions = messageReactionModels,
+                    IsCurrentUser = message.SenderId == userId
                 };
 
                 messagesModels.Add(messageModel);
@@ -443,7 +444,8 @@ namespace Simpchat.Application.Features
             merged.AddRange(filteredGroupsResult.Value);
             merged.AddRange(filteredChannelsResult.Value);
 
-            merged.OrderBy(m => m.EntityId);
+            // Sort results by EntityId
+            merged = merged.OrderBy(m => m.EntityId).ToList();
 
             return merged;
         }

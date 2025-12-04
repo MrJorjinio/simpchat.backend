@@ -54,7 +54,8 @@ namespace Simpchat.Infrastructure.Persistence.Repositories
         public async Task<List<Channel>?> SearchAsync(string term)
         {
             return await _dbContext.Channels
-                .Where(c => EF.Functions.Like(c.Name, $"%{term}"))
+                .Include(c => c.Chat)  // Include Chat entity to avoid N+1 queries
+                .Where(c => EF.Functions.Like(c.Name, $"%{term}%"))
                 .ToListAsync();
         }
 

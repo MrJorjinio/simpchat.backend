@@ -67,6 +67,8 @@ namespace Simpchat.Infrastructure.Persistence.Repositories
         public async Task<List<Conversation>> GetUserConversationsAsync(Guid userId)
         {
             return await _dbContext.Conversations
+                .Include(c => c.User1)
+                .Include(c => c.User2)
                 .Where(c => c.UserId1 == userId || c.UserId2 == userId)
                 .ToListAsync();
         }

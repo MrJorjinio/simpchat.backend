@@ -11,5 +11,6 @@ namespace Simpchat.Application.Interfaces.Services
     public interface INotificationService
     {
         Task<Result> SetAsSeenAsync(Guid notificationId);
+        Task<Result> SetMultipleAsSeenAsync(List<Guid> notificationIds);
     }
 }

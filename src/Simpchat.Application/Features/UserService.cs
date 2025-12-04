@@ -20,9 +20,11 @@ namespace Simpchat.Application.Features
         private readonly IFileStorageService _fileStorageService;
         private const string BucketName = "users-avatars";
 
-        public UserService(IUserRepository userRepo)
+        public UserService(IUserRepository userRepo, IConversationRepository conversationRepo, IFileStorageService fileStorageService)
         {
             _userRepo = userRepo;
+            _conversationRepo = conversationRepo;
+            _fileStorageService = fileStorageService;
         }
 
         public async Task<Result<GetByIdUserDto>> GetByIdAsync(Guid userId, Guid currentUserId)
@@ -70,7 +72,7 @@ namespace Simpchat.Application.Features
                 var model = new SearchChatResponseDto
                 {
                     EntityId = user.Id,
-                    DisplayName = user.Description,
+                    DisplayName = user.Username,
                     AvatarUrl = user.AvatarUrl,
                     ChatType = ChatTypes.Conversation,
                     ChatId = conversationBetweenId

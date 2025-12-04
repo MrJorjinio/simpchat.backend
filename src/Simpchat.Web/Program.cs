@@ -8,12 +8,21 @@ using Simpchat.Shared;
 using Simpchat.Web;
 using Simpchat.Web.Middlewares;
 using System.Reflection;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        // Configure JSON serializer to handle enums as strings
+        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+        options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
+        options.JsonSerializerOptions.WriteIndented = false;
+    });
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
@@ -30,8 +39,9 @@ builder.Services.AddCors(options =>
     options.AddPolicy("CorsPolicy", policy =>
     {
         policy.AllowAnyOrigin()
-        .AllowAnyMethod()
-        .AllowAnyHeader();
+            .AllowAnyMethod()
+            .AllowAnyHeader()
+            .WithExposedHeaders("Content-Type", "Authorization");
     });
 });
 
@@ -50,9 +60,13 @@ using (var scope = app.Services.CreateAsyncScope())
     await seeder.SeedAsync();
 }
 
-app.UseHttpsRedirection();
+app.UseRouting();
 
 app.UseCors("CorsPolicy");
+
+app.UseHttpsRedirection();
+
+app.UseAuthentication();
 
 app.UseAuthorization();
 

@@ -41,7 +41,7 @@ namespace Simpchat.Infrastructure.Persistence.Repositories
         public async Task<Chat?> GetByIdAsync(Guid id)
         {
             return await _dbContext.Chats
-                .Include(c => c.Messages)
+                .Include(c => c.Messages.OrderBy(m => m.SentAt))
                     .ThenInclude(m => m.Sender)
                 .FirstOrDefaultAsync(c => c.Id == id);
         }

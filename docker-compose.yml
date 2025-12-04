@@ -16,7 +16,7 @@ services:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
     volumes:
-      - /var/lib/postgresql
+      - postgres_data:/var/lib/postgresql
     ports:
       - "5432:5432"
   simpchat.filestorage:
@@ -31,3 +31,5 @@ services:
     command: server /data --console-address ":9001"
     volumes:
       - ./minio_data:/data
+volumes:
+  postgres_data: {}

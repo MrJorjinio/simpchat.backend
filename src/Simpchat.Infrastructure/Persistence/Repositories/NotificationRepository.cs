@@ -88,5 +88,18 @@ namespace Simpchat.Infrastructure.Persistence.Repositories
 
             return notification?.Id;
         }
+
+        public async Task<List<Notification>?> GetMultipleByIdsAsync(List<Guid> notificationIds)
+        {
+            return await _dbContext.Notifications
+                .Where(n => notificationIds.Contains(n.Id))
+                .ToListAsync();
+        }
+
+        public async Task UpdateMultipleAsync(List<Notification> notifications)
+        {
+            _dbContext.Notifications.UpdateRange(notifications);
+            await _dbContext.SaveChangesAsync();
+        }
     }
 }

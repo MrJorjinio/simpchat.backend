@@ -53,6 +53,7 @@ namespace Simpchat.Infrastructure.Persistence.Repositories
         public async Task<Message?> GetUserLastSendedMessageAsync(Guid userId, Guid chatId)
         {
             return await _dbContext.Messages
+                .Include(m => m.Sender)
                 .Where(m => m.ChatId == chatId && m.SenderId == userId)
                 .OrderByDescending(m => (DateTimeOffset?)m.SentAt ?? DateTimeOffset.MinValue)
                 .FirstOrDefaultAsync();
