@@ -2,6 +2,7 @@
 using Simpchat.Application.Interfaces.Repositories;
 using Simpchat.Application.Interfaces.Services;
 using Simpchat.Application.Models.ApiResult;
+using Simpchat.Application.Models.Notifications;
 using Simpchat.Shared.Models;
 using System;
 using System.Collections.Generic;
@@ -18,6 +19,60 @@ namespace Simpchat.Application.Features
         public NotificationService(INotificationRepository notificationRepo)
         {
             _notificationRepo = notificationRepo;
+        }
+
+        public async Task<Result<List<GetAllUserNotificationDto>>> GetAllUserNotificationsAsync(Guid userId)
+        {
+            var notifications = await _notificationRepo.GetUserNotificationsAsync(userId);
+
+            if (notifications == null || notifications.Count == 0)
+            {
+                return Result.Success(new List<GetAllUserNotificationDto>());
+            }
+
+            var notificationDtos = notifications
+                .Where(n => n.Message != null && n.Message.Chat != null && n.Message.Sender != null)
+                .Select(n =>
+                {
+                    var message = n.Message;
+                    var chat = message.Chat;
+                    var sender = message.Sender;
+
+                    var chatName = "";
+                    var chatAvatar = "";
+
+                    if (chat.Group != null)
+                    {
+                        chatName = chat.Group.Name ?? "";
+                        chatAvatar = chat.Group.AvatarUrl ?? "";
+                    }
+                    else if (chat.Conversation != null)
+                    {
+                        var otherUser = chat.Conversation.UserId1 == userId
+                            ? chat.Conversation.User2
+                            : chat.Conversation.User1;
+                        if (otherUser != null)
+                        {
+                            chatName = otherUser.Username ?? "";
+                            chatAvatar = otherUser.AvatarUrl ?? "";
+                        }
+                    }
+
+                    return new GetAllUserNotificationDto
+                    {
+                        NotificationId = n.Id,
+                        ChatId = chat.Id,
+                        MessageId = message.Id,
+                        ChatName = chatName,
+                        ChatAvatar = chatAvatar,
+                        SenderName = sender.Username ?? "",
+                        Content = message.Content ?? "",
+                        FileUrl = message.FileUrl,
+                        SentTime = message.SentAt
+                    };
+                }).ToList();
+
+            return Result.Success(notificationDtos);
         }
 
         public async Task<Result> SetAsSeenAsync(Guid notificationId)
@@ -40,7 +95,7 @@ namespace Simpchat.Application.Features
         {
             if (notificationIds == null || notificationIds.Count == 0)
             {
-                return Result.Success(); // No notifications to mark
+                return Result.Success();
             }
 
             var notifications = await _notificationRepo.GetMultipleByIdsAsync(notificationIds);

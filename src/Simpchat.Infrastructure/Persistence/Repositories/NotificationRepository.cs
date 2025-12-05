@@ -101,5 +101,21 @@ namespace Simpchat.Infrastructure.Persistence.Repositories
             _dbContext.Notifications.UpdateRange(notifications);
             await _dbContext.SaveChangesAsync();
         }
+
+        public async Task<List<Notification>> GetUserNotificationsAsync(Guid userId)
+        {
+            return await _dbContext.Notifications
+                .Where(n => n.ReceiverId == userId && n.IsSeen == false)
+                .Include(n => n.Message)
+                    .ThenInclude(m => m.Sender)
+                .Include(n => n.Message)
+                    .ThenInclude(m => m.Chat)
+                        .ThenInclude(c => c.Group)
+                .Include(n => n.Message)
+                    .ThenInclude(m => m.Chat)
+                        .ThenInclude(c => c.Conversation)
+                .OrderByDescending(n => n.Message.SentAt)
+                .ToListAsync();
+        }
     }
 }

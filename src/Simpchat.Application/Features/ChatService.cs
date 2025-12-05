@@ -444,7 +444,6 @@ namespace Simpchat.Application.Features
             merged.AddRange(filteredGroupsResult.Value);
             merged.AddRange(filteredChannelsResult.Value);
 
-            // Sort results by EntityId
             merged = merged.OrderBy(m => m.EntityId).ToList();
 
             return merged;

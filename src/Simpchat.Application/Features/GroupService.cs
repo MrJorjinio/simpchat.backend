@@ -145,7 +145,10 @@ namespace Simpchat.Application.Features
                 Name = groupPostDto.Name,
                 Members = new List<GroupMember>
                 {
-                    new GroupMember{ UserId = user.Id }
+                    new GroupMember{
+                        Id = Guid.NewGuid(),  // FIX: Explicitly generate Id to avoid duplicate key errors
+                        UserId = user.Id
+                    }
                 }
             };
 

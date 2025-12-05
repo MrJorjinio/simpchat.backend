@@ -23,6 +23,7 @@ namespace Simpchat.Infrastructure.Persistence.Repositories
         {
             var groupMember = new GroupMember
             {
+                Id = Guid.NewGuid(),  // FIX: Explicitly generate Id to avoid duplicate key errors
                 UserId = userId,
                 GroupId = groupId
             };

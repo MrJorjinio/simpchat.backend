@@ -74,6 +74,7 @@ namespace Simpchat.Application.Features
 
             var channelSubscriber = new ChannelSubscriber
             {
+                Id = Guid.NewGuid(),  // FIX: Explicitly generate Id
                 UserId = user.Id,
                 ChannelId = channelId,
             };
@@ -108,6 +109,7 @@ namespace Simpchat.Application.Features
 
             var channelSubscriber = new ChannelSubscriber
             {
+                Id = Guid.NewGuid(),  // FIX: Explicitly generate Id
                 UserId = user.Id,
                 ChannelId = channelId,
             };
@@ -153,7 +155,10 @@ namespace Simpchat.Application.Features
                 Name = chatPostDto.Name,
                 Subscribers = new List<ChannelSubscriber>
                 {
-                    new ChannelSubscriber{ UserId = user.Id }
+                    new ChannelSubscriber{
+                        Id = Guid.NewGuid(),  // FIX: Explicitly generate Id
+                        UserId = user.Id
+                    }
                 }
             };
 
@@ -235,6 +240,7 @@ namespace Simpchat.Application.Features
 
             var channelSubscriber = new ChannelSubscriber
             {
+                Id = Guid.NewGuid(),  // FIX: Explicitly generate Id
                 ChannelId = channelId,
                 UserId = userId
             };

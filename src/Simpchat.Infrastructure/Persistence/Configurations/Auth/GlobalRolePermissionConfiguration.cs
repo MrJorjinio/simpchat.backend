@@ -16,7 +16,12 @@ namespace Simpchat.Infrastructure.Persistence.Configurations.IdentityConfigs
         {
             builder.Property(grp => grp.Id)
                 .HasDefaultValueSql("gen_random_uuid()");
-            builder.HasKey(grp => new { grp.RoleId, grp.PermissionId, grp.Id });
+
+            // Primary key: (RoleId, PermissionId) - uniquely identifies a role permission
+            builder.HasKey(grp => new { grp.RoleId, grp.PermissionId });
+
+            // Id is unique but not part of primary key
+            builder.HasIndex(grp => grp.Id).IsUnique();
         }
     }
 }

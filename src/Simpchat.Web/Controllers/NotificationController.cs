@@ -18,8 +18,20 @@ namespace Simpchat.Web.Controllers
             _notificationService = notificationService;
         }
 
+        [HttpGet]
+        [Authorize]
+        public async Task<IActionResult> GetAllAsync()
+        {
+            var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+
+            var response = await _notificationService.GetAllUserNotificationsAsync(userId);
+            var apiResponse = response.ToApiResult();
+
+            return apiResponse.ToActionResult();
+        }
+
         [HttpPut("seen")]
-        [Authorize]  // FIX: Added missing authorization!
+        [Authorize]
         public async Task<IActionResult> SeenAsync(Guid notificationId)
         {
             var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
@@ -31,7 +43,7 @@ namespace Simpchat.Web.Controllers
         }
 
         [HttpPut("seen/batch")]
-        [Authorize]  // FIX: Added missing authorization!
+        [Authorize]
         public async Task<IActionResult> SeenBatchAsync([FromBody] MarkNotificationsRequest request)
         {
             var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));

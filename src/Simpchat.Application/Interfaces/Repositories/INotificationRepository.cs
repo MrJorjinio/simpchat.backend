@@ -11,5 +11,6 @@ namespace Simpchat.Application.Interfaces.Repositories
         Task<Guid?> GetIdAsync(Guid messageId, Guid userId);
         Task<List<Notification>?> GetMultipleByIdsAsync(List<Guid> notificationIds);
         Task UpdateMultipleAsync(List<Notification> notifications);
+        Task<List<Notification>> GetUserNotificationsAsync(Guid userId);
     }
 }
