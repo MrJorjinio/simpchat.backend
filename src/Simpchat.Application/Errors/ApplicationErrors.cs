@@ -153,5 +153,18 @@ namespace Simpchat.Application.Errors
                 "GlobalRole with given [NAME] not found"
                 );
         }
+
+        public static class File
+        {
+            public static readonly Error TooLarge = new Error(
+                "File.TooLarge",
+                "File size exceeds maximum allowed size of 50MB"
+                );
+
+            public static readonly Error InvalidType = new Error(
+                "File.InvalidType",
+                "File type is not allowed. Allowed types: images, PDF, Office documents"
+                );
+        }
     }
 }

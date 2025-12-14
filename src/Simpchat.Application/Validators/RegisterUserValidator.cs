@@ -27,10 +27,14 @@ namespace Simpchat.Application.Validators
 
             RuleFor(u => u.Password)
                 .NotEmpty().WithMessage("Password is required.")
+                .MinimumLength(RegisterUserConfig.PasswordMinLength)
+                    .WithMessage($"Password must be at least {RegisterUserConfig.PasswordMinLength} characters")
                 .MaximumLength(RegisterUserConfig.PasswordMaxLength)
                     .WithMessage($"Password max length is {RegisterUserConfig.PasswordMaxLength}")
-                .MinimumLength(RegisterUserConfig.PasswordMinLength)
-                    .WithMessage($"Password min length is {RegisterUserConfig.PasswordMinLength}");
+                .Matches(@"[A-Z]").WithMessage("Password must contain at least one uppercase letter")
+                .Matches(@"[a-z]").WithMessage("Password must contain at least one lowercase letter")
+                .Matches(@"\d").WithMessage("Password must contain at least one digit")
+                .Matches(@"[@$!%*?&#^()_\-+=\[\]{}|\\:;""'<>,.\/]").WithMessage("Password must contain at least one special character");
         }
     }
 }

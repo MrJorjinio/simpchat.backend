@@ -73,7 +73,7 @@ namespace Simpchat.Web.Controllers
             return apiResponse.ToActionResult();
         }
 
-        [HttpDelete("leave")]
+        [HttpPost("leave")]
         [Authorize]
         public async Task<IActionResult> LeaveAsync(Guid chatId)
         {

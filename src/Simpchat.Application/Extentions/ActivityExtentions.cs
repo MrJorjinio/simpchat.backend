@@ -2,8 +2,6 @@
 {
     public static class ActivityExtentions
     {
-        private static readonly double OnlineThresholdMinutes = 1;
-
         public static string GetTimeAgo(this DateTimeOffset dateTimeOffset)
         {
             var timeSpan = DateTimeOffset.UtcNow - dateTimeOffset;
@@ -18,11 +16,6 @@
                 return $"{(int)timeSpan.TotalDays} days ago";
 
             return dateTimeOffset.ToString("MMM dd, yyyy");
-        }
-
-        public static bool GetOnlineStatus(this DateTimeOffset dateTimeOffset)
-        {
-            return dateTimeOffset.AddMinutes(OnlineThresholdMinutes) > DateTimeOffset.UtcNow;
         }
     }
 }

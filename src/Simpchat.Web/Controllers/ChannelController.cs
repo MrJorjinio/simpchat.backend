@@ -56,9 +56,9 @@ namespace Simpchat.Web.Controllers
         [Authorize]
         public async Task<IActionResult> AddMemberAsync(Guid chatId, Guid addingUserId)
         {
-            var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+            var requesterId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
 
-            var response = await _channelService.AddSubscriberAsync(chatId, userId);
+            var response = await _channelService.AddSubscriberAsync(chatId, addingUserId, requesterId);
             var apiResponse = response.ToApiResult();
 
             return apiResponse.ToActionResult();
@@ -76,7 +76,7 @@ namespace Simpchat.Web.Controllers
             return apiResponse.ToActionResult();
         }
 
-        [HttpDelete("leave")]
+        [HttpPost("leave")]
         [Authorize]
         public async Task<IActionResult> LeaveAsync(Guid chatId)
         {

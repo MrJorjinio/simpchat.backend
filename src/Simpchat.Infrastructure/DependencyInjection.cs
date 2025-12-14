@@ -80,8 +80,13 @@ namespace Simpchat.Infrastructure
             if (minioSettings == null)
                 throw new Exception("MinioSettings section is missing from configuration.");
 
+            // Register MinioSettings as singleton
+            services.AddSingleton(minioSettings);
+
+            // Register FileStorageService
             services.AddScoped<IFileStorageService, FileStorageService>();
 
+            // Register MinioClient
             services.AddSingleton<IMinioClient>(sp =>
             {
                 var client = new MinioClient()

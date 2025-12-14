@@ -18,13 +18,15 @@ namespace Simpchat.Application.Features
         private readonly IUserRepository _userRepo;
         private readonly IConversationRepository _conversationRepo;
         private readonly IFileStorageService _fileStorageService;
+        private readonly IPresenceService _presenceService;
         private const string BucketName = "users-avatars";
 
-        public UserService(IUserRepository userRepo, IConversationRepository conversationRepo, IFileStorageService fileStorageService)
+        public UserService(IUserRepository userRepo, IConversationRepository conversationRepo, IFileStorageService fileStorageService, IPresenceService presenceService)
         {
             _userRepo = userRepo;
             _conversationRepo = conversationRepo;
             _fileStorageService = fileStorageService;
+            _presenceService = presenceService;
         }
 
         public async Task<Result<GetByIdUserDto>> GetByIdAsync(Guid userId, Guid currentUserId)
@@ -47,8 +49,9 @@ namespace Simpchat.Application.Features
 
             var model = new GetByIdUserDto
             {
-                IsOnline = user.LastSeen.GetOnlineStatus(),
+                IsOnline = _presenceService.IsUserOnline(userId),
                 Description = user.Description,
+                Email = user.Email,
                 AvatarUrl = user.AvatarUrl,
                 ChatId = conversationBetweenId,
                 LastSeen = user.LastSeen,
@@ -119,6 +122,30 @@ namespace Simpchat.Application.Features
             {
                 if (avatar.FileName != null && avatar.Content != null && avatar.ContentType != null)
                 {
+                    // Delete old avatar if exists
+                    if (!string.IsNullOrEmpty(user.AvatarUrl))
+                    {
+                        try
+                        {
+                            // Extract object name from URL
+                            // URL format: http(s)://endpoint/bucket-name/object-name
+                            var uri = new Uri(user.AvatarUrl);
+                            var pathSegments = uri.AbsolutePath.Split('/', StringSplitOptions.RemoveEmptyEntries);
+
+                            // Object name is after the bucket name in the path
+                            if (pathSegments.Length >= 2)
+                            {
+                                var objectName = pathSegments[^1]; // Last segment is the object name
+                                await _fileStorageService.RemoveFileAsync(BucketName, objectName);
+                            }
+                        }
+                        catch
+                        {
+                            // Don't fail the request if old avatar deletion fails
+                            // Continue with uploading the new avatar
+                        }
+                    }
+
                     var uniqueFileName = $"{Guid.NewGuid()}_{avatar.FileName}";
                     user.AvatarUrl = await _fileStorageService.UploadFileAsync(BucketName, uniqueFileName, avatar.Content, avatar.ContentType);
                 }
@@ -146,7 +173,7 @@ namespace Simpchat.Application.Features
                     Id = u.Id,
                     AvatarUrl = u.AvatarUrl,
                     Email = u.Email,
-                    IsOnline = u.LastSeen.GetOnlineStatus(),
+                    IsOnline = _presenceService.IsUserOnline(u.Id),
                     LastSeen = u.LastSeen,
                 }).ToList();
 

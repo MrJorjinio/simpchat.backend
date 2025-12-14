@@ -57,11 +57,8 @@ namespace Simpchat.Application.Features
             if (group is null)
                 return Result.Failure(ApplicationErrors.Chat.IdNotFound);
 
-            var canManage = group.CanManageChat(requesterId) ||
-                            await _chatUserPermissionRepository.HasUserPermissionAsync(
-                                groupId, requesterId, nameof(ChatPermissionTypes.ManageUsers));
-
-            if (!canManage)
+            // Check if requester is a member of the group
+            if (!group.IsGroupMember(requesterId))
             {
                 return Result.Failure(ApplicationErrors.ChatPermission.Denied);
             }

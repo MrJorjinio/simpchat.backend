@@ -34,6 +34,9 @@ namespace Simpchat.Infrastructure.FileStorage
                     await _minioClient.MakeBucketAsync(
                         new MakeBucketArgs().WithBucket(bucketName)
                     ).ConfigureAwait(false);
+
+                    // Make bucket public for file downloads
+                    await MakeBucketPublicAsync(bucketName).ConfigureAwait(false);
                 }
 
                 await _minioClient.PutObjectAsync(
@@ -45,18 +48,48 @@ namespace Simpchat.Infrastructure.FileStorage
                         .WithContentType(contentType)
                 ).ConfigureAwait(false);
 
-                return $"http://{_minioSettings.Endpoint}/{bucketName}/{objectName}";
+                // Return permanent public URL (no expiry)
+                return GetPublicUrl(bucketName, objectName);
             }
             catch (MinioException e)
             {
-                Console.WriteLine($"[Minio] Upload Error: {e.Message}");
+                _logger.LogError(e, "[Minio] Upload Error: {Message}", e.Message);
                 throw;
             }
             catch (Exception e)
             {
-                Console.WriteLine($"[General] Error during upload: {e.Message}");
+                _logger.LogError(e, "[General] Error during upload: {Message}", e.Message);
                 throw;
             }
+        }
+
+        public async Task<string> GetPresignedUrlAsync(string bucketName, string objectName, int expiryInSeconds = 604800)
+        {
+            try
+            {
+                var presignedUrl = await _minioClient.PresignedGetObjectAsync(
+                    new PresignedGetObjectArgs()
+                        .WithBucket(bucketName)
+                        .WithObject(objectName)
+                        .WithExpiry(expiryInSeconds)
+                ).ConfigureAwait(false);
+
+                return presignedUrl;
+            }
+            catch (MinioException e)
+            {
+                _logger.LogError(e, "[Minio] Presigned URL Error: {Message}", e.Message);
+                throw;
+            }
+        }
+
+        public string GetPublicUrl(string bucketName, string objectName)
+        {
+            // Construct permanent public URL
+            var protocol = _minioSettings.UseSsl ? "https" : "http";
+            var url = $"{protocol}://{_minioSettings.Endpoint}/{bucketName}/{objectName}";
+            _logger.LogInformation("[Minio] Generated public URL: {Url}", url);
+            return url;
         }
 
         public async Task<MemoryStream> DownloadFileAsync(string bucketName, string objectName)
@@ -79,7 +112,7 @@ namespace Simpchat.Infrastructure.FileStorage
             }
             catch (MinioException e)
             {
-                Console.WriteLine($"[Minio] Download Error: {e.Message}");
+                _logger.LogError(e, "[Minio] Download Error: {Message}", e.Message);
                 throw;
             }
         }
@@ -118,7 +151,7 @@ namespace Simpchat.Infrastructure.FileStorage
             }
             catch (MinioException e)
             {
-                Console.WriteLine($"[Minio] Remove Error: {e.Message}");
+                _logger.LogError(e, "[Minio] Remove Error: {Message}", e.Message);
                 throw;
             }
         }
@@ -133,7 +166,7 @@ namespace Simpchat.Infrastructure.FileStorage
             }
             catch (MinioException e)
             {
-                Console.WriteLine($"[Minio] Bucket Check Error: {e.Message}");
+                _logger.LogError(e, "[Minio] Bucket Check Error: {Message}", e.Message);
                 throw;
             }
         }
@@ -155,8 +188,54 @@ namespace Simpchat.Infrastructure.FileStorage
             }
             catch (MinioException e)
             {
-                Console.WriteLine($"[Minio] Create Bucket Error: {e.Message}");
+                _logger.LogError(e, "[Minio] Create Bucket Error: {Message}", e.Message);
                 throw;
+            }
+        }
+
+        public async Task SetBucketPolicyAsync(string bucketName, string policy)
+        {
+            try
+            {
+                await _minioClient.SetPolicyAsync(
+                    new SetPolicyArgs()
+                        .WithBucket(bucketName)
+                        .WithPolicy(policy)
+                ).ConfigureAwait(false);
+
+                _logger.LogInformation("[Minio] Bucket policy set for {BucketName}", bucketName);
+            }
+            catch (MinioException e)
+            {
+                _logger.LogError(e, "[Minio] Set Policy Error: {Message}", e.Message);
+                throw;
+            }
+        }
+
+        public async Task MakeBucketPublicAsync(string bucketName)
+        {
+            try
+            {
+                // Create a policy that allows public read access
+                var policy = $@"{{
+                    ""Version"": ""2012-10-17"",
+                    ""Statement"": [
+                        {{
+                            ""Effect"": ""Allow"",
+                            ""Principal"": {{""AWS"": [""*""]}},
+                            ""Action"": [""s3:GetObject""],
+                            ""Resource"": [""arn:aws:s3:::{bucketName}/*""]
+                        }}
+                    ]
+                }}";
+
+                await SetBucketPolicyAsync(bucketName, policy).ConfigureAwait(false);
+                _logger.LogInformation("[Minio] Bucket {BucketName} is now public", bucketName);
+            }
+            catch (MinioException e)
+            {
+                _logger.LogWarning(e, "[Minio] Failed to make bucket public (continuing with presigned URLs): {Message}", e.Message);
+                // Don't throw - we'll use presigned URLs instead
             }
         }
     }

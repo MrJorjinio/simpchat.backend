@@ -1,4 +1,5 @@
 ﻿using Simpchat.Application.Extentions;
+using Simpchat.Application.Interfaces.Services;
 using Simpchat.Domain.Entities;
 using System;
 using System.Collections.Generic;
@@ -17,7 +18,7 @@ namespace Simpchat.Application.Models.Users
         public DateTimeOffset LastSeen { get; set; }
         public bool IsOnline { get; set; }
 
-        public static UserResponseDto ConvertFromDomainObject(User user)
+        public static UserResponseDto ConvertFromDomainObject(User user, IPresenceService presenceService)
         {
             if (user is null) return null;
 
@@ -25,7 +26,7 @@ namespace Simpchat.Application.Models.Users
             {
                 Id = user.Id,
                 Description = user.Description,
-                IsOnline = user.LastSeen.GetOnlineStatus(),
+                IsOnline = presenceService.IsUserOnline(user.Id),
                 LastSeen = user.LastSeen,
                 AvatarUrl = user.AvatarUrl,
                 Username = user.Username

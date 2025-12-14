@@ -55,12 +55,18 @@ namespace Simpchat.Application.Features
             _chatUserPermissionRepository = chatUserPermissionRepository;
         }
 
-        public async Task<Result> AddSubscriberAsync(Guid channelId, Guid userId)
+        public async Task<Result> AddSubscriberAsync(Guid channelId, Guid userId, Guid requesterId)
         {
             var channel = await _repo.GetByIdAsync(channelId);
 
             if (channel is null)
                 return Result.Failure(ApplicationErrors.Chat.IdNotFound);
+
+            // Check if requester is a subscriber of the channel
+            if (!channel.IsChannelSubscriber(requesterId))
+            {
+                return Result.Failure(ApplicationErrors.ChatPermission.Denied);
+            }
 
             var user = await _userRepo.GetByIdAsync(userId);
 

@@ -25,7 +25,7 @@ namespace Simpchat.Web.Controllers
         {
             var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
 
-            var response = await _conversationService.DeleteAsync(conversationId);
+            var response = await _conversationService.DeleteAsync(conversationId, userId);
             var apiResponse = response.ToApiResult();
 
             return apiResponse.ToActionResult();

@@ -34,13 +34,20 @@ builder.Services
     .AddInfrastructure(builder.Configuration)
     .AddApplication();
 
+builder.Services.AddSignalR(options =>
+{
+    options.EnableDetailedErrors = builder.Environment.IsDevelopment();
+    options.MaximumReceiveMessageSize = 102400; // 100 KB
+});
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("CorsPolicy", policy =>
     {
-        policy.AllowAnyOrigin()
+        policy.WithOrigins("http://localhost:3000", "http://localhost:5173", "http://10.30.1.77:5173", "http://192.168.56.1:5173") // Add your frontend URLs
             .AllowAnyMethod()
             .AllowAnyHeader()
+            .AllowCredentials() // REQUIRED for SignalR
             .WithExposedHeaders("Content-Type", "Authorization");
     });
 });
@@ -64,12 +71,15 @@ app.UseRouting();
 
 app.UseCors("CorsPolicy");
 
-app.UseHttpsRedirection();
+// Disable HTTPS redirection for development with local IP
+// app.UseHttpsRedirection();
 
 app.UseAuthentication();
 
 app.UseAuthorization();
 
 app.MapControllers();
+
+app.MapHub<Simpchat.Web.Hubs.ChatHub>("/hubs/chat");
 
 app.Run();
