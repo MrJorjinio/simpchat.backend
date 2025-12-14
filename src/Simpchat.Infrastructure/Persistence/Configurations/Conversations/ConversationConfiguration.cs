@@ -20,7 +20,11 @@ namespace Simpchat.Infrastructure.Persistence.Configurations.Conversations
                    .WithMany(c => c.ConversationsAsUser2)
                    .HasForeignKey(c => c.UserId2);
 
-            builder.HasKey(c => new { c.Id, c.UserId1, c.UserId2 });
+            // Primary key: (UserId1, UserId2) - uniquely identifies a conversation
+            builder.HasKey(c => new { c.UserId1, c.UserId2 });
+
+            // Id is unique but not part of primary key
+            builder.HasIndex(c => c.Id).IsUnique();
         }
     }
 }

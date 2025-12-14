@@ -57,11 +57,8 @@ namespace Simpchat.Application.Features
             if (group is null)
                 return Result.Failure(ApplicationErrors.Chat.IdNotFound);
 
-            var canManage = group.CanManageChat(requesterId) ||
-                            await _chatUserPermissionRepository.HasUserPermissionAsync(
-                                groupId, requesterId, nameof(ChatPermissionTypes.ManageUsers));
-
-            if (!canManage)
+            // Check if requester is a member of the group
+            if (!group.IsGroupMember(requesterId))
             {
                 return Result.Failure(ApplicationErrors.ChatPermission.Denied);
             }
@@ -100,9 +97,6 @@ namespace Simpchat.Application.Features
 
             if (chat.PrivacyType == ChatPrivacyTypes.Private)
                 return Result.Failure(new Error("Group.Private", "Cannot join private group"));
-
-            if (user.HwoCanAddType == HwoCanAddYouTypes.Nobody)
-                return Result.Failure(new Error("User.PrivacyRestricted", "User has restricted who can add them to chats"));
 
             if (group.IsGroupMember(userId))
                 return Result.Failure(ApplicationErrors.User.NotParticipatedInChat);
@@ -148,7 +142,10 @@ namespace Simpchat.Application.Features
                 Name = groupPostDto.Name,
                 Members = new List<GroupMember>
                 {
-                    new GroupMember{ UserId = user.Id }
+                    new GroupMember{
+                        Id = Guid.NewGuid(),  // FIX: Explicitly generate Id to avoid duplicate key errors
+                        UserId = user.Id
+                    }
                 }
             };
 
@@ -247,12 +244,11 @@ namespace Simpchat.Application.Features
 
             foreach (var group in results)
             {
-                var chat = await _chatRepo.GetByIdAsync(group.Id);
-
-                if (chat != null && chat.PrivacyType == ChatPrivacyTypes.Public)
+                if (group.Chat != null && group.Chat.PrivacyType == ChatPrivacyTypes.Public)
                 {
                     modeledResults.Add(new SearchChatResponseDto
                     {
+                        EntityId = group.Id,
                         ChatId = group.Id,
                         AvatarUrl = group.AvatarUrl,
                         DisplayName = group.Name,
@@ -342,7 +338,7 @@ namespace Simpchat.Application.Features
                     },
                     Name = group.Name,
                     NotificationsCount = notificationsCount,
-                    Type = ChatTypes.Channel,
+                    Type = ChatTypes.Group,
                     UserLastMessage = lastUserSendedMessage?.SentAt
                 };
 

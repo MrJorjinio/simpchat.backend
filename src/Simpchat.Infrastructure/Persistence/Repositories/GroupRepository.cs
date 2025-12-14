@@ -23,6 +23,7 @@ namespace Simpchat.Infrastructure.Persistence.Repositories
         {
             var groupMember = new GroupMember
             {
+                Id = Guid.NewGuid(),  // FIX: Explicitly generate Id to avoid duplicate key errors
                 UserId = userId,
                 GroupId = groupId
             };
@@ -47,8 +48,15 @@ namespace Simpchat.Infrastructure.Persistence.Repositories
 
         public async Task DeleteMemberAsync(GroupMember groupMember)
         {
-            _dbContext.GroupsMembers.Remove(groupMember);
-            await _dbContext.SaveChangesAsync();
+            // Find the existing entity to avoid tracking conflicts
+            var existingMember = await _dbContext.GroupsMembers
+                .FirstOrDefaultAsync(m => m.GroupId == groupMember.GroupId && m.UserId == groupMember.UserId);
+
+            if (existingMember != null)
+            {
+                _dbContext.GroupsMembers.Remove(existingMember);
+                await _dbContext.SaveChangesAsync();
+            }
         }
 
         public async Task<List<Group>?> GetAllAsync()
@@ -77,7 +85,8 @@ namespace Simpchat.Infrastructure.Persistence.Repositories
         public async Task<List<Group>?> SearchAsync(string term)
         {
             return await _dbContext.Groups
-                .Where(g => EF.Functions.Like(g.Name, $"%{term}"))
+                .Include(g => g.Chat)  // Include Chat entity to avoid N+1 queries
+                .Where(g => EF.Functions.Like(g.Name, $"%{term}%"))
                 .ToListAsync();
         }
 

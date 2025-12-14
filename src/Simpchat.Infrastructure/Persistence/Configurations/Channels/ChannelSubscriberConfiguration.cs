@@ -16,7 +16,11 @@ namespace Simpchat.Infrastructure.Persistence.Configurations.Channels
             builder.Property(cs => cs.Id)
                 .HasDefaultValueSql("gen_random_uuid()");
 
-            builder.HasKey(cs => new { cs.UserId, cs.ChannelId, cs.Id });
+            // Primary key: (UserId, ChannelId) - uniquely identifies a channel subscriber
+            builder.HasKey(cs => new { cs.UserId, cs.ChannelId });
+
+            // Id is unique but not part of primary key
+            builder.HasIndex(cs => cs.Id).IsUnique();
         }
     }
 }

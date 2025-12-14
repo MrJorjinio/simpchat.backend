@@ -11,7 +11,7 @@ namespace Simpchat.Application.Models.Users
     public class UpdateUserDto
     {
         public string Username { get; set; }
-        public string Description { get; set; }
+        public string? Description { get; set; }
         public HwoCanAddYouTypes AddChatMinLvl { get; set; }
     }
 }

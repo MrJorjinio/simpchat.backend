@@ -9,5 +9,8 @@ namespace Simpchat.Application.Interfaces.Repositories
         Task<bool> GetMessageSeenStatusAsync(Guid messageId);
         Task<bool> CheckIsNotSeenAsync(Guid messageId, Guid userId);
         Task<Guid?> GetIdAsync(Guid messageId, Guid userId);
+        Task<List<Notification>?> GetMultipleByIdsAsync(List<Guid> notificationIds);
+        Task UpdateMultipleAsync(List<Notification> notifications);
+        Task<List<Notification>> GetUserNotificationsAsync(Guid userId);
     }
 }

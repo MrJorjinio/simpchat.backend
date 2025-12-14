@@ -15,7 +15,12 @@ namespace Simpchat.Infrastructure.Persistence.Configurations.Groups
         {
             builder.Property(gm => gm.Id)
                 .HasDefaultValueSql("gen_random_uuid()");
-            builder.HasKey(gp => new { gp.GroupId, gp.UserId, gp.Id });
+
+            // Primary key: (GroupId, UserId) - uniquely identifies a group member
+            builder.HasKey(gp => new { gp.GroupId, gp.UserId });
+
+            // Id is unique but not part of primary key
+            builder.HasIndex(gp => gp.Id).IsUnique();
         }
     }
 }

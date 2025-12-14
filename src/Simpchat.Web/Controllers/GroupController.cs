@@ -73,7 +73,7 @@ namespace Simpchat.Web.Controllers
             return apiResponse.ToActionResult();
         }
 
-        [HttpDelete("leave")]
+        [HttpPost("leave")]
         [Authorize]
         public async Task<IActionResult> LeaveAsync(Guid chatId)
         {
@@ -100,7 +100,7 @@ namespace Simpchat.Web.Controllers
 
         [HttpPut]
         [Authorize]
-        public async Task<IActionResult> UpdateAsync(Guid chatId, [FromForm]UpdateChatDto updateChatDto, IFormFile file)
+        public async Task<IActionResult> UpdateAsync(Guid chatId, [FromForm]UpdateChatDto updateChatDto, IFormFile? file)
         {
             var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
 

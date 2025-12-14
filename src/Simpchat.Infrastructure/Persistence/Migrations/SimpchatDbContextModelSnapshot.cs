@@ -59,16 +59,18 @@ namespace Simpchat.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasDefaultValueSql("gen_random_uuid()");
 
                     b.Property<DateTimeOffset>("SubscribedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.HasKey("UserId", "ChannelId", "Id");
+                    b.HasKey("UserId", "ChannelId");
 
                     b.HasIndex("ChannelId");
+
+                    b.HasIndex("Id")
+                        .IsUnique();
 
                     b.ToTable("ChannelsSubscribers");
                 });
@@ -154,13 +156,15 @@ namespace Simpchat.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasDefaultValueSql("gen_random_uuid()");
 
-                    b.HasKey("UserId", "ChatId", "PermissionId", "Id");
+                    b.HasKey("UserId", "ChatId", "PermissionId");
 
                     b.HasIndex("ChatId");
+
+                    b.HasIndex("Id")
+                        .IsUnique();
 
                     b.HasIndex("PermissionId");
 
@@ -169,9 +173,6 @@ namespace Simpchat.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("Simpchat.Domain.Entities.Conversation", b =>
                 {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uuid");
-
                     b.Property<Guid>("UserId1")
                         .HasColumnType("uuid");
 
@@ -184,12 +185,13 @@ namespace Simpchat.Infrastructure.Persistence.Migrations
                     b.Property<DateTimeOffset>("DeletedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.HasKey("Id", "UserId1", "UserId2");
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("UserId1", "UserId2");
 
                     b.HasIndex("Id")
                         .IsUnique();
-
-                    b.HasIndex("UserId1");
 
                     b.HasIndex("UserId2");
 
@@ -281,11 +283,13 @@ namespace Simpchat.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasDefaultValueSql("gen_random_uuid()");
 
-                    b.HasKey("RoleId", "PermissionId", "Id");
+                    b.HasKey("RoleId", "PermissionId");
+
+                    b.HasIndex("Id")
+                        .IsUnique();
 
                     b.HasIndex("PermissionId");
 
@@ -329,14 +333,16 @@ namespace Simpchat.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasDefaultValueSql("gen_random_uuid()");
 
                     b.Property<DateTimeOffset>("JoinedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.HasKey("GroupId", "UserId", "Id");
+                    b.HasKey("GroupId", "UserId");
+
+                    b.HasIndex("Id")
+                        .IsUnique();
 
                     b.HasIndex("UserId");
 
@@ -394,15 +400,17 @@ namespace Simpchat.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid");
 
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasDefaultValueSql("gen_random_uuid()");
-
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.HasKey("MessageId", "ReactionId", "UserId", "Id");
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.HasKey("MessageId", "ReactionId", "UserId");
+
+                    b.HasIndex("Id")
+                        .IsUnique();
 
                     b.HasIndex("ReactionId");
 

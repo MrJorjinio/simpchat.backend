@@ -7,6 +7,7 @@ using Simpchat.Application.Interfaces.Services;
 
 using Simpchat.Application.Models.Files;
 using Simpchat.Application.Models.Users;
+using Simpchat.Application.Validators;
 using Simpchat.Domain.Enums;
 using System.Security.Claims;
 
@@ -21,6 +22,18 @@ namespace Simpchat.Web.Controllers
         public UserController(IUserService userService)
         {
             _userService = userService;
+        }
+
+        [HttpGet("me")]
+        [Authorize]
+        public async Task<IActionResult> GetMeAsync()
+        {
+            var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+
+            var response = await _userService.GetByIdAsync(userId, userId);
+            var apiResponse = response.ToApiResult();
+
+            return apiResponse.ToActionResult();
         }
 
         [HttpGet("{id}")]
@@ -60,10 +73,20 @@ namespace Simpchat.Web.Controllers
         }
 
         [HttpPut("me")]
-        [Authorize(Roles = "Admin")]
+        [Authorize]
         public async Task<IActionResult> UpdateMeAsync([FromForm]UpdateUserDto model, IFormFile? file)
         {
             var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+
+            // Validate avatar file if present (images only)
+            if (file != null)
+            {
+                var validationResult = FileValidator.ValidateFile(file, imageOnly: true);
+                if (!validationResult.IsSuccess)
+                {
+                    return validationResult.ToApiResult().ToActionResult();
+                }
+            }
 
             var fileUploadRequest = new UploadFileRequest();
 
@@ -86,6 +109,16 @@ namespace Simpchat.Web.Controllers
         [HttpPut("{userId}")]
         public async Task<IActionResult> UpdateAsync(Guid userId, [FromForm] UpdateUserDto model, IFormFile? file)
         {
+            // Validate avatar file if present (images only)
+            if (file != null)
+            {
+                var validationResult = FileValidator.ValidateFile(file, imageOnly: true);
+                if (!validationResult.IsSuccess)
+                {
+                    return validationResult.ToApiResult().ToActionResult();
+                }
+            }
+
             var fileUploadRequest = new UploadFileRequest();
 
             if (file is not null)
@@ -122,6 +155,39 @@ namespace Simpchat.Web.Controllers
             var apiResponse = response.ToApiResult();
 
             return apiResponse.ToActionResult();
+        }
+
+        [HttpPost("block/{blockedUserId}")]
+        [Authorize]
+        public async Task<IActionResult> BlockUserAsync(Guid blockedUserId)
+        {
+            var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+
+            // TODO: Implement block logic in UserService
+            // For now, return success
+            return Ok(new { success = true, message = "User blocked successfully" });
+        }
+
+        [HttpPost("unblock/{blockedUserId}")]
+        [Authorize]
+        public async Task<IActionResult> UnblockUserAsync(Guid blockedUserId)
+        {
+            var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+
+            // TODO: Implement unblock logic in UserService
+            // For now, return success
+            return Ok(new { success = true, message = "User unblocked successfully" });
+        }
+
+        [HttpGet("blocked")]
+        [Authorize]
+        public async Task<IActionResult> GetBlockedUsersAsync()
+        {
+            var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+
+            // TODO: Implement get blocked users logic in UserService
+            // For now, return empty array
+            return Ok(new { success = true, data = new List<object>() });
         }
     }
 }

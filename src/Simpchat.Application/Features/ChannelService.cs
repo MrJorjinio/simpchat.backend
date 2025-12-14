@@ -55,12 +55,18 @@ namespace Simpchat.Application.Features
             _chatUserPermissionRepository = chatUserPermissionRepository;
         }
 
-        public async Task<Result> AddSubscriberAsync(Guid channelId, Guid userId)
+        public async Task<Result> AddSubscriberAsync(Guid channelId, Guid userId, Guid requesterId)
         {
             var channel = await _repo.GetByIdAsync(channelId);
 
             if (channel is null)
                 return Result.Failure(ApplicationErrors.Chat.IdNotFound);
+
+            // Check if requester is a subscriber of the channel
+            if (!channel.IsChannelSubscriber(requesterId))
+            {
+                return Result.Failure(ApplicationErrors.ChatPermission.Denied);
+            }
 
             var user = await _userRepo.GetByIdAsync(userId);
 
@@ -74,6 +80,7 @@ namespace Simpchat.Application.Features
 
             var channelSubscriber = new ChannelSubscriber
             {
+                Id = Guid.NewGuid(),  // FIX: Explicitly generate Id
                 UserId = user.Id,
                 ChannelId = channelId,
             };
@@ -103,14 +110,12 @@ namespace Simpchat.Application.Features
             if (chat.PrivacyType == ChatPrivacyTypes.Private)
                 return Result.Failure(new Error("Channel.Private", "Cannot join private channel"));
 
-            if (user.HwoCanAddType == HwoCanAddYouTypes.Nobody)
-                return Result.Failure(new Error("User.PrivacyRestricted", "User has restricted who can add them to chats"));
-
             if (channel.IsChannelSubscriber(userId))
                 return Result.Failure(ApplicationErrors.User.NotParticipatedInChat);
 
             var channelSubscriber = new ChannelSubscriber
             {
+                Id = Guid.NewGuid(),  // FIX: Explicitly generate Id
                 UserId = user.Id,
                 ChannelId = channelId,
             };
@@ -156,7 +161,10 @@ namespace Simpchat.Application.Features
                 Name = chatPostDto.Name,
                 Subscribers = new List<ChannelSubscriber>
                 {
-                    new ChannelSubscriber{ UserId = user.Id }
+                    new ChannelSubscriber{
+                        Id = Guid.NewGuid(),  // FIX: Explicitly generate Id
+                        UserId = user.Id
+                    }
                 }
             };
 
@@ -238,6 +246,7 @@ namespace Simpchat.Application.Features
 
             var channelSubscriber = new ChannelSubscriber
             {
+                Id = Guid.NewGuid(),  // FIX: Explicitly generate Id
                 ChannelId = channelId,
                 UserId = userId
             };
@@ -253,14 +262,15 @@ namespace Simpchat.Application.Features
 
             var modeledResults = new List<SearchChatResponseDto>();
 
+            // Use the included Chat entity to avoid N+1 queries
             foreach (var channel in results)
             {
-                var chat = await _chatRepo.GetByIdAsync(channel.Id);
-
-                if (chat != null && chat.PrivacyType == ChatPrivacyTypes.Public)
+                // Only return public channels in search results
+                if (channel.Chat != null && channel.Chat.PrivacyType == ChatPrivacyTypes.Public)
                 {
                     modeledResults.Add(new SearchChatResponseDto
                     {
+                        EntityId = channel.Id,
                         ChatId = channel.Id,
                         AvatarUrl = channel.AvatarUrl,
                         DisplayName = channel.Name,

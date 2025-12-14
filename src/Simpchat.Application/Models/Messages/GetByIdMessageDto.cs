@@ -21,5 +21,6 @@ namespace Simpchat.Application.Models.Messages
         public bool IsNotificated { get; set; }
         public Guid NotificationId { get; set; }
         public List<GetAllMessageReaction> MessageReactions { get; set; }
+        public bool IsCurrentUser { get; set; }
     }
 }

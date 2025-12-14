@@ -16,26 +16,35 @@ namespace Simpchat.Application.Features
         private readonly INotificationRepository _notificationRepo;
         private readonly IUserRepository _userRepo;
         private readonly IMessageRepository _messageRepo;
+        private readonly IPresenceService _presenceService;
 
         public ConversationService(
             IConversationRepository conversationRepo,
             INotificationRepository notificationRepo,
             IUserRepository userRepo,
-            IMessageRepository messageRepo)
+            IMessageRepository messageRepo,
+            IPresenceService presenceService)
         {
             _conversationRepo = conversationRepo;
             _notificationRepo = notificationRepo;
             _userRepo = userRepo;
             _messageRepo = messageRepo;
+            _presenceService = presenceService;
         }
 
-        public async Task<Result> DeleteAsync(Guid conversationId)
+        public async Task<Result> DeleteAsync(Guid conversationId, Guid userId)
         {
             var conversation = await _conversationRepo.GetByIdAsync(conversationId);
 
             if (conversation is null)
             {
                 return Result.Failure(ApplicationErrors.Chat.IdNotFound);
+            }
+
+            // Authorization check: only participants can delete the conversation
+            if (conversation.UserId1 != userId && conversation.UserId2 != userId)
+            {
+                return Result.Failure(ApplicationErrors.ChatPermission.Denied);
             }
 
             await _conversationRepo.DeleteAsync(conversation);
@@ -62,6 +71,10 @@ namespace Simpchat.Application.Features
                 var lastMessage = await _messageRepo.GetLastMessageAsync(conversation.Id);
                 var lastUserSendedMessage = await _messageRepo.GetUserLastSendedMessageAsync(userId, conversation.Id);
 
+                // Get the other user's ID to check online status
+                var otherUserId = conversation.UserId1 == userId ? conversation.UserId2 : conversation.UserId1;
+                var isOnline = _presenceService.IsUserOnline(otherUserId);
+
                 var modeledConversation = new UserChatResponseDto
                 {
                     AvatarUrl = conversation.UserId1 == userId ? conversation.User2.AvatarUrl : conversation.User1.AvatarUrl,
@@ -76,7 +89,8 @@ namespace Simpchat.Application.Features
                         SentAt = lastMessage?.SentAt
                     },
                     NotificationsCount = notificationsCount,
-                    UserLastMessage = lastUserSendedMessage?.SentAt
+                    UserLastMessage = lastUserSendedMessage?.SentAt,
+                    IsOnline = isOnline
                 };
 
                 modeledConversations.Add(modeledConversation);

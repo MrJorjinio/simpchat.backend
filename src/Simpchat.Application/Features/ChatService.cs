@@ -33,6 +33,7 @@ namespace Simpchat.Application.Features
         private readonly IConversationService _conversationService;
         private readonly IUserService _userService;
         private readonly IMessageReactionRepository _messageReactionRepo;
+        private readonly IPresenceService _presenceService;
 
 
         public ChatService(
@@ -51,7 +52,8 @@ namespace Simpchat.Application.Features
             IChatUserPermissionRepository chatUserPermissionRepository,
             IGroupService groupService,
             IChatBanRepository chatBanRepository,
-            IMessageReactionRepository messageReactionRepo)
+            IMessageReactionRepository messageReactionRepo,
+            IPresenceService presenceService)
         {
             _repo = chatRepository;
             _messageRepo = messageRepo;
@@ -69,6 +71,7 @@ namespace Simpchat.Application.Features
             _groupService = groupService;
             _chatBanRepository = chatBanRepository;
             _messageReactionRepo = messageReactionRepo;
+            _presenceService = presenceService;
         }
 
         public async Task<Result<Guid>> AddUserPermissionAsync(Guid chatId, Guid userId, string permissionName, Guid requesterId)
@@ -131,6 +134,7 @@ namespace Simpchat.Application.Features
 
             var chatUserPermission = new ChatUserPermission
             {
+                Id = Guid.NewGuid(),  // Generate GUID in C# to avoid duplicates
                 ChatId = chatId,
                 PermissionId = chatPermission.Id,
                 UserId = userId
@@ -181,12 +185,12 @@ namespace Simpchat.Application.Features
 
                 participantsCount = 2;
 
-                if (conversation.User1.LastSeen.GetOnlineStatus() is true)
+                if (_presenceService.IsUserOnline(conversation.User1.Id))
                 {
                     participantsOnline++;
                 }
 
-                if (conversation.User2.LastSeen.GetOnlineStatus() is true)
+                if (_presenceService.IsUserOnline(conversation.User2.Id))
                 {
                     participantsOnline++;
                 }
@@ -204,7 +208,7 @@ namespace Simpchat.Application.Features
 
                 foreach (var groupMember in group.Members)
                 {
-                    if (groupMember.User.LastSeen.GetOnlineStatus() is true)
+                    if (_presenceService.IsUserOnline(groupMember.User.Id))
                     {
                         participantsOnline++;
                     }
@@ -223,7 +227,7 @@ namespace Simpchat.Application.Features
 
                 foreach (var channelSubscriber in channel.Subscribers)
                 {
-                    if (channelSubscriber.User.LastSeen.GetOnlineStatus() is true)
+                    if (_presenceService.IsUserOnline(channelSubscriber.User.Id))
                     {
                         participantsOnline++;
                     }
@@ -265,7 +269,8 @@ namespace Simpchat.Application.Features
                     SentAt = message.SentAt,
                     IsNotificated = await _notificationRepo.CheckIsNotSeenAsync(message.Id, userId),
                     NotificationId = notificationId ?? Guid.Empty,
-                    MessageReactions = messageReactionModels
+                    MessageReactions = messageReactionModels,
+                    IsCurrentUser = message.SenderId == userId
                 };
 
                 messagesModels.Add(messageModel);
@@ -306,10 +311,13 @@ namespace Simpchat.Application.Features
 
             var participantsCount = 0;
             var participantsOnline = 0;
-            var participants = new List<UserResponseDto>();
+            var members = new List<ChatMemberDto>();
             var avatarUrl = "";
             var name = "";
             var description = "";
+            var createdAt = DateTimeOffset.UtcNow;
+            ChatPrivacyTypes? privacy = null;
+            Guid? createdById = null;
 
             if (chat.Type == ChatTypes.Conversation)
             {
@@ -324,12 +332,12 @@ namespace Simpchat.Application.Features
 
                 participantsCount = 2;
 
-                if (conversation.User1.LastSeen.GetOnlineStatus() is true)
+                if (_presenceService.IsUserOnline(conversation.User1.Id))
                 {
                     participantsOnline++;
                 }
 
-                if (conversation.User2.LastSeen.GetOnlineStatus() is true)
+                if (_presenceService.IsUserOnline(conversation.User2.Id))
                 {
                     participantsOnline++;
                 }
@@ -337,8 +345,24 @@ namespace Simpchat.Application.Features
                 avatarUrl = conversation.UserId1 == userId ? conversation.User2.AvatarUrl : conversation.User1.AvatarUrl;
                 name = conversation.UserId1 == userId ? conversation.User2.Username : conversation.User1.Username;
                 description = conversation.UserId1 == userId ? conversation.User2.Description : conversation.User1.Description;
-                participants.Add(UserResponseDto.ConvertFromDomainObject(conversation.User1));
-                participants.Add(UserResponseDto.ConvertFromDomainObject(conversation.User2));
+                createdAt = conversation.CreatedAt;
+
+                members.Add(new ChatMemberDto
+                {
+                    Id = Guid.NewGuid(),
+                    UserId = conversation.User1.Id,
+                    User = UserResponseDto.ConvertFromDomainObject(conversation.User1, _presenceService),
+                    JoinedAt = conversation.CreatedAt.ToString("o"),
+                    Role = "member"
+                });
+                members.Add(new ChatMemberDto
+                {
+                    Id = Guid.NewGuid(),
+                    UserId = conversation.User2.Id,
+                    User = UserResponseDto.ConvertFromDomainObject(conversation.User2, _presenceService),
+                    JoinedAt = conversation.CreatedAt.ToString("o"),
+                    Role = "member"
+                });
             }
             else if (chat.Type == ChatTypes.Group)
             {
@@ -347,14 +371,28 @@ namespace Simpchat.Application.Features
                 bool isParticipated = group.Members.FirstOrDefault(m => m.UserId == userId) != null;
 
                 participantsCount = group.Members.Count();
+                createdById = group.CreatedById;
+                createdAt = chat.CreatedAt;
+                privacy = chat.PrivacyType;
 
                 foreach (var groupMember in group.Members)
                 {
-                    if (groupMember.User.LastSeen.GetOnlineStatus() is true)
+                    if (_presenceService.IsUserOnline(groupMember.User.Id))
                     {
                         participantsOnline++;
                     }
-                    participants.Add(UserResponseDto.ConvertFromDomainObject(groupMember.User));
+
+                    // Determine role: owner = admin, others = member (can be upgraded via permissions)
+                    var role = groupMember.UserId == group.CreatedById ? "admin" : "member";
+
+                    members.Add(new ChatMemberDto
+                    {
+                        Id = groupMember.Id,
+                        UserId = groupMember.UserId,
+                        User = UserResponseDto.ConvertFromDomainObject(groupMember.User, _presenceService),
+                        JoinedAt = groupMember.JoinedAt.ToString("o"),
+                        Role = role
+                    });
                 }
 
                 avatarUrl = group.AvatarUrl;
@@ -368,14 +406,28 @@ namespace Simpchat.Application.Features
                 bool isParticipated = channel.Subscribers.FirstOrDefault(m => m.UserId == userId) != null;
 
                 participantsCount = channel.Subscribers.Count();
+                createdById = channel.CreatedById;
+                createdAt = chat.CreatedAt;
+                privacy = chat.PrivacyType;
 
                 foreach (var channelSubscriber in channel.Subscribers)
                 {
-                    if (channelSubscriber.User.LastSeen.GetOnlineStatus() is true)
+                    if (_presenceService.IsUserOnline(channelSubscriber.User.Id))
                     {
                         participantsOnline++;
                     }
-                    participants.Add(UserResponseDto.ConvertFromDomainObject(channelSubscriber.User));
+
+                    // Determine role: owner = admin, others = member
+                    var role = channelSubscriber.UserId == channel.CreatedById ? "admin" : "member";
+
+                    members.Add(new ChatMemberDto
+                    {
+                        Id = channelSubscriber.Id,
+                        UserId = channelSubscriber.UserId,
+                        User = UserResponseDto.ConvertFromDomainObject(channelSubscriber.User, _presenceService),
+                        JoinedAt = channelSubscriber.SubscribedAt.ToString("o"),
+                        Role = role
+                    });
                 }
 
                 avatarUrl = channel.AvatarUrl;
@@ -383,17 +435,18 @@ namespace Simpchat.Application.Features
                 description = channel.Description;
             }
 
-            var notificationsCount = await _notificationRepo.GetUserChatNotificationsCountAsync(userId, chatId);
-
             var model = new GetByIdChatProfile
             {
-                ChatId = chatId,
+                Id = chatId,
+                Type = chat.Type,
+                Privacy = privacy,
+                CreatedAt = createdAt,
                 Description = description,
                 AvatarUrl = avatarUrl,
                 Name = name,
                 ParticipantsCount = participantsCount,
                 ParticipantsOnline = participantsOnline,
-                Participants = participants
+                Members = members
             };
 
             return model;
@@ -443,7 +496,7 @@ namespace Simpchat.Application.Features
             merged.AddRange(filteredGroupsResult.Value);
             merged.AddRange(filteredChannelsResult.Value);
 
-            merged.OrderBy(m => m.EntityId);
+            merged = merged.OrderBy(m => m.EntityId).ToList();
 
             return merged;
         }

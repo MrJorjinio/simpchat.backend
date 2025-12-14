@@ -12,7 +12,7 @@ namespace Simpchat.Application.Interfaces.Services
 {
     public interface IChannelService
     {
-        Task<Result> AddSubscriberAsync(Guid channelId, Guid currentUserId);
+        Task<Result> AddSubscriberAsync(Guid channelId, Guid userId, Guid requesterId);
         Task<Result> JoinChannelAsync(Guid channelId, Guid userId);
         Task<Result<Guid>> CreateAsync(PostChatDto chatPostDto, UploadFileRequest? avatar);
         Task<Result> DeleteAsync(Guid channelId, Guid userId);

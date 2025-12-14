@@ -16,7 +16,12 @@ namespace Simpchat.Infrastructure.Persistence.Configurations.Messages
         {
             builder.Property(mr => mr.Id)
                 .HasDefaultValueSql("gen_random_uuid()");
-            builder.HasKey(mr => new { mr.MessageId, mr.ReactionId, mr.UserId, mr.Id });
+
+            // Primary key: (MessageId, ReactionId, UserId) - uniquely identifies a user's reaction to a message
+            builder.HasKey(mr => new { mr.MessageId, mr.ReactionId, mr.UserId });
+
+            // Id is unique but not part of primary key
+            builder.HasIndex(mr => mr.Id).IsUnique();
         }
     }
 }

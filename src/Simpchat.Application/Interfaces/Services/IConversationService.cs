@@ -13,6 +13,6 @@ namespace Simpchat.Application.Interfaces.Services
     public interface IConversationService
     {
         Task<Result<List<UserChatResponseDto>>> GetUserConversationsAsync(Guid userId);
-        Task<Result> DeleteAsync(Guid conversationId);
+        Task<Result> DeleteAsync(Guid conversationId, Guid userId);
     }
 }

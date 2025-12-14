@@ -8,12 +8,21 @@ using Simpchat.Shared;
 using Simpchat.Web;
 using Simpchat.Web.Middlewares;
 using System.Reflection;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        // Configure JSON serializer to handle enums as strings
+        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+        options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
+        options.JsonSerializerOptions.WriteIndented = false;
+    });
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
@@ -25,13 +34,21 @@ builder.Services
     .AddInfrastructure(builder.Configuration)
     .AddApplication();
 
+builder.Services.AddSignalR(options =>
+{
+    options.EnableDetailedErrors = builder.Environment.IsDevelopment();
+    options.MaximumReceiveMessageSize = 102400; // 100 KB
+});
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("CorsPolicy", policy =>
     {
-        policy.AllowAnyOrigin()
-        .AllowAnyMethod()
-        .AllowAnyHeader();
+        policy.WithOrigins("http://localhost:3000", "http://localhost:5173", "http://10.30.1.77:5173", "http://192.168.56.1:5173") // Add your frontend URLs
+            .AllowAnyMethod()
+            .AllowAnyHeader()
+            .AllowCredentials() // REQUIRED for SignalR
+            .WithExposedHeaders("Content-Type", "Authorization");
     });
 });
 
@@ -50,12 +67,19 @@ using (var scope = app.Services.CreateAsyncScope())
     await seeder.SeedAsync();
 }
 
-app.UseHttpsRedirection();
+app.UseRouting();
 
 app.UseCors("CorsPolicy");
+
+// Disable HTTPS redirection for development with local IP
+// app.UseHttpsRedirection();
+
+app.UseAuthentication();
 
 app.UseAuthorization();
 
 app.MapControllers();
+
+app.MapHub<Simpchat.Web.Hubs.ChatHub>("/hubs/chat");
 
 app.Run();
