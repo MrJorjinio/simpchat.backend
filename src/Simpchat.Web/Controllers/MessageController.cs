@@ -51,6 +51,12 @@ namespace Simpchat.Web.Controllers
         {
             var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
 
+            // Ensure at least content or file is provided
+            if (string.IsNullOrWhiteSpace(messagePostDto.Content) && file == null)
+            {
+                return BadRequest(new { success = false, error = "Message must have either content or a file attachment" });
+            }
+
             // Validate file if present
             if (file != null)
             {
@@ -94,6 +100,11 @@ namespace Simpchat.Web.Controllers
 
                     if (message != null && messagePostDto.ChatId.HasValue)
                     {
+                        // Get sender details for the broadcast
+                        var senderResult = await _userService.GetByIdAsync(userId, userId);
+                        var senderUsername = senderResult.IsSuccess ? senderResult.Value.Username : "Unknown";
+                        var senderAvatarUrl = senderResult.IsSuccess ? senderResult.Value.AvatarUrl : null;
+
                         // Broadcast to chat group
                         await _hubContext.Clients.Group($"chat_{messagePostDto.ChatId.Value}")
                             .SendAsync("ReceiveMessage", new
@@ -101,6 +112,8 @@ namespace Simpchat.Web.Controllers
                                 messageId = message.Id,
                                 chatId = message.ChatId,
                                 senderId = userId,
+                                senderUsername = senderUsername,
+                                senderAvatarUrl = senderAvatarUrl,
                                 content = message.Content,
                                 fileUrl = message.FileUrl,
                                 replyId = message.ReplyId,

@@ -27,7 +27,7 @@ namespace Simpchat.Application.Features
         private readonly IGroupRepository _groupRepository;
         private readonly IChannelRepository _channelRepository;
         private readonly INotificationRepository _notificationRepository;
-        private const string BucketName = "Messages-Files";
+        private const string BucketName = "messages-files";
 
         public MessageService(
             IMessageRepository repo,

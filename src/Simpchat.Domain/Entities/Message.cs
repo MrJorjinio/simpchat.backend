@@ -5,7 +5,7 @@ namespace Simpchat.Domain.Entities
 {
     public class Message : BaseEntity
     {
-        public string Content { get; set; }
+        public string? Content { get; set; }
         public string? FileUrl { get; set; }
         public DateTimeOffset SentAt { get; set; } = DateTimeOffset.UtcNow;
         public Guid? ReplyId { get; set; }

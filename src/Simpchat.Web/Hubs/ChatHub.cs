@@ -114,13 +114,21 @@ namespace Simpchat.Web.Hubs
 
                 if (result.IsSuccess)
                 {
+                    // Get sender details for the broadcast
+                    var senderResult = await _userService.GetByIdAsync(userId, userId);
+                    var senderUsername = senderResult.IsSuccess ? senderResult.Value.Username : "Unknown";
+                    var senderAvatarUrl = senderResult.IsSuccess ? senderResult.Value.AvatarUrl : null;
+
                     // Broadcast to chat participants
                     await Clients.Group($"chat_{request.ChatId}").SendAsync("ReceiveMessage", new
                     {
                         messageId = result.Value,
                         chatId = request.ChatId,
                         senderId = userId,
+                        senderUsername = senderUsername,
+                        senderAvatarUrl = senderAvatarUrl,
                         content = request.Content,
+                        fileUrl = (string?)null,
                         replyId = request.ReplyId,
                         sentAt = DateTimeOffset.UtcNow
                     });

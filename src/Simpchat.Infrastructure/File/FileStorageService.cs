@@ -85,10 +85,14 @@ namespace Simpchat.Infrastructure.FileStorage
 
         public string GetPublicUrl(string bucketName, string objectName)
         {
-            // Construct permanent public URL
+            // Use PublicEndpoint for browser-accessible URLs, fallback to Endpoint if not set
+            var endpoint = !string.IsNullOrEmpty(_minioSettings.PublicEndpoint)
+                ? _minioSettings.PublicEndpoint
+                : _minioSettings.Endpoint;
+
             var protocol = _minioSettings.UseSsl ? "https" : "http";
-            var url = $"{protocol}://{_minioSettings.Endpoint}/{bucketName}/{objectName}";
-            _logger.LogInformation("[Minio] Generated public URL: {Url}", url);
+            var url = $"{protocol}://{endpoint}/{bucketName}/{objectName}";
+            _logger.LogInformation("[Minio] Generated public URL: {Url} (endpoint: {Endpoint})", url, endpoint);
             return url;
         }
 
