@@ -122,6 +122,11 @@ namespace Simpchat.Application.Errors
                 "Chat.Ban.CannotBanOwner",
                 "You cannot ban the owner of this chat"
                 );
+
+            public static readonly Error NotFound = new Error(
+                "Chat.Ban.NotFound",
+                "Ban record not found"
+                );
         }
 
         public static class Reaction

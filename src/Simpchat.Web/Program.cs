@@ -42,13 +42,16 @@ builder.Services.AddSignalR(options =>
 
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("CorsPolicy", policy =>
+    options.AddPolicy("dev", policy =>
     {
-        policy.WithOrigins("http://localhost:3000", "http://localhost:5173", "http://10.30.1.77:5173", "http://192.168.56.1:5173") // Add your frontend URLs
-            .AllowAnyMethod()
+        policy
+            .WithOrigins(
+                "http://localhost:5173",
+                "http://192.168.100.25:5173"
+            )
             .AllowAnyHeader()
-            .AllowCredentials() // REQUIRED for SignalR
-            .WithExposedHeaders("Content-Type", "Authorization");
+            .AllowAnyMethod()
+            .AllowCredentials();
     });
 });
 
@@ -69,10 +72,7 @@ using (var scope = app.Services.CreateAsyncScope())
 
 app.UseRouting();
 
-app.UseCors("CorsPolicy");
-
-// Disable HTTPS redirection for development with local IP
-// app.UseHttpsRedirection();
+app.UseCors("dev");
 
 app.UseAuthentication();
 

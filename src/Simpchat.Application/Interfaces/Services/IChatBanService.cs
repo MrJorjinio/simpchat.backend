@@ -1,4 +1,4 @@
-﻿
+
 using Simpchat.Shared.Models;
 using System;
 using System.Collections.Generic;
@@ -12,5 +12,14 @@ namespace Simpchat.Application.Interfaces.Services
     {
         Task<Result<Guid>> BanUserAsync(Guid chatId, Guid userId, Guid requesterId);
         Task<Result> DeleteAsync(Guid chatId, Guid userId, Guid requesterId);
+        Task<Result<List<BannedUserDto>>> GetBannedUsersAsync(Guid chatId, Guid requesterId);
+    }
+
+    public class BannedUserDto
+    {
+        public Guid UserId { get; set; }
+        public string Username { get; set; } = string.Empty;
+        public string? AvatarUrl { get; set; }
+        public DateTime BannedAt { get; set; }
     }
 }

@@ -131,22 +131,50 @@ namespace Simpchat.Application.Features
                 return Result.Failure(ApplicationErrors.ChatPermission.Denied);
             }
 
-            var user = await _userRepo.GetByIdAsync(userId);
-
-            if (user is null)
+            // Find the existing ban
+            var banId = await _repo.GetIdAsync(chatId, userId);
+            if (banId == null)
             {
-                return Result.Failure(ApplicationErrors.User.IdNotFound);
+                return Result.Failure(ApplicationErrors.ChatBan.NotFound);
             }
 
-            var chatBan = new ChatBan
+            var chatBan = await _repo.GetByIdAsync(banId.Value);
+            if (chatBan == null)
             {
-                ChatId = chatId,
-                UserId = userId
-            };
+                return Result.Failure(ApplicationErrors.ChatBan.NotFound);
+            }
 
             await _repo.DeleteAsync(chatBan);
 
             return Result.Success();
+        }
+
+        public async Task<Result<List<BannedUserDto>>> GetBannedUsersAsync(Guid chatId, Guid requesterId)
+        {
+            var chat = await _chatRepo.GetByIdAsync(chatId);
+
+            if (chat is null)
+            {
+                return Result.Failure<List<BannedUserDto>>(ApplicationErrors.Chat.IdNotFound);
+            }
+
+            // Only admins/owners can view banned users
+            if (!await CanBanUserAsync(chatId, requesterId, chat.Type))
+            {
+                return Result.Failure<List<BannedUserDto>>(ApplicationErrors.ChatPermission.Denied);
+            }
+
+            var bannedUsers = await _repo.GetBannedUsersAsync(chatId);
+
+            var result = bannedUsers.Select(b => new BannedUserDto
+            {
+                UserId = b.UserId,
+                Username = b.User?.Username ?? "Unknown",
+                AvatarUrl = b.User?.AvatarUrl,
+                BannedAt = b.BannedAt
+            }).ToList();
+
+            return result;
         }
 
         private async Task<bool> CanBanUserAsync(Guid chatId, Guid requesterId, ChatTypes chatType)

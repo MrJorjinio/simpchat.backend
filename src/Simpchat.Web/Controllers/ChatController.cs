@@ -122,5 +122,17 @@ namespace Simpchat.Web.Controllers
 
             return apiResponse.ToActionResult();
         }
+
+        [HttpGet("{chatId}/banned-users")]
+        [Authorize]
+        public async Task<IActionResult> GetBannedUsersAsync(Guid chatId)
+        {
+            var requesterId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+
+            var response = await _chatBanService.GetBannedUsersAsync(chatId, requesterId);
+            var apiResponse = response.ToApiResult();
+
+            return apiResponse.ToActionResult();
+        }
     }
 }

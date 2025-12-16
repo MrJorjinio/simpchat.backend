@@ -376,7 +376,8 @@ namespace Simpchat.Application.Features
                     Name = channel.Name,
                     NotificationsCount = notificationsCount,
                     Type = ChatTypes.Channel,
-                    UserLastMessage = lastUserSendedMessage?.SentAt
+                    UserLastMessage = lastUserSendedMessage?.SentAt,
+                    ParticipantsCount = channel.Subscribers?.Count ?? 0
                 };
 
                 modeledChannels.Add(modeledChannel);

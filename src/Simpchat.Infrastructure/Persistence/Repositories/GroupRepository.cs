@@ -75,10 +75,16 @@ namespace Simpchat.Infrastructure.Persistence.Repositories
 
         public async Task<List<Group>> GetUserParticipatedGroupsAsync(Guid userId)
         {
-            return await _dbContext.GroupsMembers
-                .Include(cs => cs.Group)
-                .Where(cs => cs.UserId == userId)
-                .Select(cs => cs.Group)
+            // Get group IDs the user is a member of
+            var groupIds = await _dbContext.GroupsMembers
+                .Where(gm => gm.UserId == userId)
+                .Select(gm => gm.GroupId)
+                .ToListAsync();
+
+            // Fetch groups with Members included
+            return await _dbContext.Groups
+                .Include(g => g.Members)
+                .Where(g => groupIds.Contains(g.Id))
                 .ToListAsync();
         }
 

@@ -354,7 +354,8 @@ namespace Simpchat.Application.Features
                     Name = group.Name,
                     NotificationsCount = notificationsCount,
                     Type = ChatTypes.Group,
-                    UserLastMessage = lastUserSendedMessage?.SentAt
+                    UserLastMessage = lastUserSendedMessage?.SentAt,
+                    ParticipantsCount = group.Members?.Count ?? 0
                 };
 
                 modeledGroups.Add(modeledGroup);

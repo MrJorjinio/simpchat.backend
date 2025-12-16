@@ -44,10 +44,16 @@ namespace Simpchat.Infrastructure.Persistence.Repositories
 
         public async Task<List<Channel>> GetUserSubscribedChannelsAsync(Guid userId)
         {
-            return await _dbContext.ChannelsSubscribers
-                .Include(cs => cs.Channel)
+            // Get channel IDs the user is subscribed to
+            var channelIds = await _dbContext.ChannelsSubscribers
                 .Where(cs => cs.UserId == userId)
-                .Select(cs => cs.Channel)
+                .Select(cs => cs.ChannelId)
+                .ToListAsync();
+
+            // Fetch channels with Subscribers included
+            return await _dbContext.Channels
+                .Include(c => c.Subscribers)
+                .Where(c => channelIds.Contains(c.Id))
                 .ToListAsync();
         }
 

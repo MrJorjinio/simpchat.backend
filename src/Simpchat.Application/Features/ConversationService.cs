@@ -90,7 +90,8 @@ namespace Simpchat.Application.Features
                     },
                     NotificationsCount = notificationsCount,
                     UserLastMessage = lastUserSendedMessage?.SentAt,
-                    IsOnline = isOnline
+                    IsOnline = isOnline,
+                    ParticipantsCount = 2 // DMs always have 2 participants
                 };
 
                 modeledConversations.Add(modeledConversation);
