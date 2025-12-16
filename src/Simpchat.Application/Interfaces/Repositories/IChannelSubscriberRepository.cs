@@ -9,5 +9,7 @@ using System.Threading.Tasks;
 namespace Simpchat.Application.Interfaces.Repositories
 {
     public interface IChannelSubscriberRepository : IBaseRepository<ChannelSubscriber>
-    { }
+    {
+        Task DeleteSubscriberAsync(Guid channelId, Guid userId);
+    }
 }

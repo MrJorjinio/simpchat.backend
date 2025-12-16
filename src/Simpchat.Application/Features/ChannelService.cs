@@ -27,6 +27,7 @@ namespace Simpchat.Application.Features
         private readonly IMessageRepository _messageRepo;
         private readonly IValidator<UpdateChatDto> _updateValidator;
         private readonly IValidator<PostChatDto> _createValidator;
+        private readonly IChatBanRepository _chatBanRepo;
         private const string BucketName = "channels-avatars";
 
         public ChannelService(
@@ -40,7 +41,8 @@ namespace Simpchat.Application.Features
             IValidator<PostChatDto> createValidator,
             IChannelSubscriberRepository channelSubscriberRepo,
             IChatPermissionRepository chatPermissionRepository,
-            IChatUserPermissionRepository chatUserPermissionRepository)
+            IChatUserPermissionRepository chatUserPermissionRepository,
+            IChatBanRepository chatBanRepository)
         {
             _repo = repo;
             _userRepo = userRepo;
@@ -53,6 +55,7 @@ namespace Simpchat.Application.Features
             _channelSubscriberRepo = channelSubscriberRepo;
             _chatPermissionRepository = chatPermissionRepository;
             _chatUserPermissionRepository = chatUserPermissionRepository;
+            _chatBanRepo = chatBanRepository;
         }
 
         public async Task<Result> AddSubscriberAsync(Guid channelId, Guid userId, Guid requesterId)
@@ -72,6 +75,12 @@ namespace Simpchat.Application.Features
 
             if (user is null)
                 return Result.Failure(ApplicationErrors.User.IdNotFound);
+
+            // Check if user is banned from this channel
+            if (await _chatBanRepo.IsUserBannedAsync(channelId, userId))
+            {
+                return Result.Failure(ApplicationErrors.ChatBan.UserBanned);
+            }
 
             if (channel.IsChannelSubscriber(userId))
             {
@@ -106,6 +115,12 @@ namespace Simpchat.Application.Features
 
             if (user is null)
                 return Result.Failure(ApplicationErrors.User.IdNotFound);
+
+            // Check if user is banned from this channel
+            if (await _chatBanRepo.IsUserBannedAsync(channelId, userId))
+            {
+                return Result.Failure(ApplicationErrors.ChatBan.UserBanned);
+            }
 
             if (chat.PrivacyType == ChatPrivacyTypes.Private)
                 return Result.Failure(new Error("Channel.Private", "Cannot join private channel"));

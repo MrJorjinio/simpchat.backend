@@ -101,6 +101,29 @@ namespace Simpchat.Application.Errors
                 );
         }
 
+        public static class ChatBan
+        {
+            public static readonly Error UserBanned = new Error(
+                "Chat.Ban.UserBanned",
+                "You are banned from this chat"
+                );
+
+            public static readonly Error AlreadyBanned = new Error(
+                "Chat.Ban.AlreadyBanned",
+                "User is already banned from this chat"
+                );
+
+            public static readonly Error CannotBanSelf = new Error(
+                "Chat.Ban.CannotBanSelf",
+                "You cannot ban yourself"
+                );
+
+            public static readonly Error CannotBanOwner = new Error(
+                "Chat.Ban.CannotBanOwner",
+                "You cannot ban the owner of this chat"
+                );
+        }
+
         public static class Reaction
         {
             public static readonly Error IdNotFound = new Error(

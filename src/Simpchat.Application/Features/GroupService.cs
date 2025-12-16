@@ -26,6 +26,7 @@ namespace Simpchat.Application.Features
         private readonly IValidator<UpdateChatDto> _updateValidator;
         private readonly IValidator<PostChatDto> _createValidator;
         private readonly IChatUserPermissionRepository _chatUserPermissionRepository;
+        private readonly IChatBanRepository _chatBanRepo;
         private const string BucketName = "groups-avatars";
 
         public GroupService(
@@ -37,7 +38,8 @@ namespace Simpchat.Application.Features
             IMessageRepository messageRepository,
             IValidator<UpdateChatDto> updateValidator,
             IValidator<PostChatDto> createValidator,
-            IChatUserPermissionRepository chatUserPermissionRepository)
+            IChatUserPermissionRepository chatUserPermissionRepository,
+            IChatBanRepository chatBanRepository)
         {
             _repo = repo;
             _userRepo = userRepo;
@@ -48,6 +50,7 @@ namespace Simpchat.Application.Features
             _updateValidator = updateValidator;
             _createValidator = createValidator;
             _chatUserPermissionRepository = chatUserPermissionRepository;
+            _chatBanRepo = chatBanRepository;
         }
 
         public async Task<Result> AddMemberAsync(Guid groupId, Guid userId, Guid requesterId)
@@ -67,6 +70,12 @@ namespace Simpchat.Application.Features
 
             if (user is null)
                 return Result.Failure(ApplicationErrors.User.IdNotFound);
+
+            // Check if user is banned from this group
+            if (await _chatBanRepo.IsUserBannedAsync(groupId, userId))
+            {
+                return Result.Failure(ApplicationErrors.ChatBan.UserBanned);
+            }
 
             if (group.IsGroupMember(userId))
             {
@@ -94,6 +103,12 @@ namespace Simpchat.Application.Features
 
             if (user is null)
                 return Result.Failure(ApplicationErrors.User.IdNotFound);
+
+            // Check if user is banned from this group
+            if (await _chatBanRepo.IsUserBannedAsync(groupId, userId))
+            {
+                return Result.Failure(ApplicationErrors.ChatBan.UserBanned);
+            }
 
             if (chat.PrivacyType == ChatPrivacyTypes.Private)
                 return Result.Failure(new Error("Group.Private", "Cannot join private group"));
