@@ -8,8 +8,10 @@ namespace Simpchat.Infrastructure.Persistence.Configurations.Chats
     {
         public void Configure(EntityTypeBuilder<ChatUserPermission> builder)
         {
+            // Auto-generate Id on insert - use ValueGeneratedOnAdd to ensure EF always generates
             builder.Property(cup => cup.Id)
-                .HasDefaultValueSql("gen_random_uuid()");
+                .HasDefaultValueSql("gen_random_uuid()")
+                .ValueGeneratedOnAdd();
 
             // Primary key: (UserId, ChatId, PermissionId) - uniquely identifies a user permission in a chat
             builder.HasKey(cup => new { cup.UserId, cup.ChatId, cup.PermissionId });

@@ -26,8 +26,18 @@ namespace Simpchat.Application.Features
         private readonly IValidator<UpdateChatDto> _updateValidator;
         private readonly IValidator<PostChatDto> _createValidator;
         private readonly IChatUserPermissionRepository _chatUserPermissionRepository;
+        private readonly IChatPermissionRepository _chatPermissionRepository;
         private readonly IChatBanRepository _chatBanRepo;
+        private readonly IChatHubService _chatHubService;
+        private readonly IRealTimeNotificationService _realTimeNotificationService;
         private const string BucketName = "groups-avatars";
+
+        // Default permissions for new group members
+        private static readonly string[] DefaultGroupPermissions = new[]
+        {
+            nameof(ChatPermissionTypes.SendMessage),
+            nameof(ChatPermissionTypes.AddUsers)
+        };
 
         public GroupService(
             IGroupRepository repo,
@@ -39,7 +49,10 @@ namespace Simpchat.Application.Features
             IValidator<UpdateChatDto> updateValidator,
             IValidator<PostChatDto> createValidator,
             IChatUserPermissionRepository chatUserPermissionRepository,
-            IChatBanRepository chatBanRepository)
+            IChatPermissionRepository chatPermissionRepository,
+            IChatBanRepository chatBanRepository,
+            IChatHubService chatHubService,
+            IRealTimeNotificationService realTimeNotificationService)
         {
             _repo = repo;
             _userRepo = userRepo;
@@ -50,7 +63,10 @@ namespace Simpchat.Application.Features
             _updateValidator = updateValidator;
             _createValidator = createValidator;
             _chatUserPermissionRepository = chatUserPermissionRepository;
+            _chatPermissionRepository = chatPermissionRepository;
             _chatBanRepo = chatBanRepository;
+            _chatHubService = chatHubService;
+            _realTimeNotificationService = realTimeNotificationService;
         }
 
         public async Task<Result> AddMemberAsync(Guid groupId, Guid userId, Guid requesterId)
@@ -62,6 +78,16 @@ namespace Simpchat.Application.Features
 
             // Check if requester is a member of the group
             if (!group.IsGroupMember(requesterId))
+            {
+                return Result.Failure(ApplicationErrors.ChatPermission.Denied);
+            }
+
+            // Check if requester has permission to add users (owner or has AddUsers permission)
+            var canAddUsers = group.IsGroupOwner(requesterId) ||
+                              await _chatUserPermissionRepository.HasUserPermissionAsync(
+                                  groupId, requesterId, nameof(ChatPermissionTypes.AddUsers));
+
+            if (!canAddUsers)
             {
                 return Result.Failure(ApplicationErrors.ChatPermission.Denied);
             }
@@ -83,6 +109,18 @@ namespace Simpchat.Application.Features
             }
 
             await _repo.AddMemberAsync(userId, groupId);
+
+            // Grant default permissions to the new member
+            await GrantDefaultPermissionsAsync(groupId, userId);
+
+            // Notify the user via SignalR that they've been added to the group
+            await _chatHubService.NotifyUserAddedToChatAsync(
+                userId,
+                groupId,
+                group.Name,
+                "group",
+                group.AvatarUrl
+            );
 
             return Result.Success();
         }
@@ -118,7 +156,47 @@ namespace Simpchat.Application.Features
 
             await _repo.AddMemberAsync(userId, groupId);
 
+            // Grant default permissions to the new member
+            await GrantDefaultPermissionsAsync(groupId, userId);
+
             return Result.Success();
+        }
+
+        /// <summary>
+        /// Grants default permissions (SendMessage, AddUsers) to a new group member.
+        /// </summary>
+        private async Task GrantDefaultPermissionsAsync(Guid groupId, Guid userId)
+        {
+            foreach (var permissionName in DefaultGroupPermissions)
+            {
+                try
+                {
+                    var permission = await _chatPermissionRepository.GetByNameAsync(permissionName);
+                    if (permission != null)
+                    {
+                        // Check if user already has this permission
+                        var existing = await _chatUserPermissionRepository.GetByUserChatPermissionAsync(
+                            groupId, userId, permission.Id);
+
+                        if (existing == null)
+                        {
+                            var chatUserPermission = new ChatUserPermission
+                            {
+                                Id = Guid.NewGuid(),
+                                ChatId = groupId,
+                                UserId = userId,
+                                PermissionId = permission.Id
+                            };
+                            await _chatUserPermissionRepository.CreateAsync(chatUserPermission);
+                        }
+                    }
+                }
+                catch
+                {
+                    // Silently ignore if permission doesn't exist or other errors
+                    // This ensures the member is still added even if permissions fail
+                }
+            }
         }
 
         public async Task<Result<Guid>> CreateAsync(PostChatDto groupPostDto, UploadFileRequest? avatar)
@@ -196,7 +274,16 @@ namespace Simpchat.Application.Features
                 return Result.Failure(ApplicationErrors.ChatPermission.Denied);
             }
 
+            // Get member IDs before deletion to notify them
+            var memberIds = group.Members?.Select(m => m.UserId).ToList() ?? new List<Guid>();
+
             await _repo.DeleteAsync(group);
+
+            // Notify all members that the chat was deleted
+            if (memberIds.Count > 0)
+            {
+                await _realTimeNotificationService.NotifyChatDeletedAsync(groupId, memberIds);
+            }
 
             return Result.Success();
         }
@@ -228,7 +315,8 @@ namespace Simpchat.Application.Features
                 return Result.Failure(ApplicationErrors.Chat.IdNotFound);
             }
 
-            if (userId != requesterId)
+            var isRemovingByOther = userId != requesterId;
+            if (isRemovingByOther)
             {
                 var canManage = group.CanManageChat(requesterId) ||
                                 await _chatUserPermissionRepository.HasUserPermissionAsync(
@@ -247,6 +335,12 @@ namespace Simpchat.Application.Features
             };
 
             await _repo.DeleteMemberAsync(groupMember);
+
+            // Notify the user if they were removed by someone else (not leaving voluntarily)
+            if (isRemovingByOther)
+            {
+                await _realTimeNotificationService.NotifyUserRemovedFromChatAsync(groupId, userId);
+            }
 
             return Result.Success();
         }
@@ -348,8 +442,11 @@ namespace Simpchat.Application.Features
                     {
                         Content = lastMessage?.Content,
                         FileUrl = lastMessage?.FileUrl,
+                        SenderId = lastMessage?.SenderId,
                         SenderUsername = lastMessage?.Sender.Username,
-                        SentAt = lastMessage?.SentAt
+                        SentAt = lastMessage?.SentAt,
+                        ReplyId = lastMessage?.ReplyId,
+                        IsSeen = lastMessage?.IsSeen ?? false
                     },
                     Name = group.Name,
                     NotificationsCount = notificationsCount,

@@ -85,8 +85,11 @@ namespace Simpchat.Application.Features
                     {
                         Content = lastMessage?.Content,
                         FileUrl = lastMessage?.FileUrl,
+                        SenderId = lastMessage?.SenderId,
                         SenderUsername = lastMessage?.Sender.Username,
-                        SentAt = lastMessage?.SentAt
+                        SentAt = lastMessage?.SentAt,
+                        ReplyId = lastMessage?.ReplyId,
+                        IsSeen = lastMessage?.IsSeen ?? false
                     },
                     NotificationsCount = notificationsCount,
                     UserLastMessage = lastUserSendedMessage?.SentAt,

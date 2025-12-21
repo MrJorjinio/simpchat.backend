@@ -4,8 +4,8 @@
     {
         SendMessage,
         ManageMessages,
-        ManageReactions,
         ManageUsers,
+        AddUsers,
         ManageChatInfo,
         ManageBans,
         PinMessages

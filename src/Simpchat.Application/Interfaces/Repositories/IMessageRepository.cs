@@ -12,5 +12,9 @@ namespace Simpchat.Application.Interfaces.Repositories
     {
         Task<Message?> GetLastMessageAsync(Guid chatId);
         Task<Message?> GetUserLastSendedMessageAsync(Guid userId, Guid chatId);
+        Task<List<Message>> GetPinnedMessagesAsync(Guid chatId);
+        Task<int> GetPinnedMessagesCountAsync(Guid chatId);
+        Task<List<Message>> GetUnseenMessagesInChatAsync(Guid chatId, Guid userId);
+        Task MarkMessagesAsSeenAsync(Guid chatId, Guid userId);
     }
 }

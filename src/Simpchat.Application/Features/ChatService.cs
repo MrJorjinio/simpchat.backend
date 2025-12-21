@@ -176,6 +176,11 @@ namespace Simpchat.Application.Features
             {
                 var conversation = await _conversationRepo.GetByIdAsync(chatId);
 
+                if (conversation == null)
+                {
+                    return Result.Failure<GetByIdChatDto>(ApplicationErrors.Chat.IdNotFound);
+                }
+
                 var isParticipated = conversation.UserId1 == userId || conversation.UserId2 == userId;
 
                 if (isParticipated is false)
@@ -242,17 +247,15 @@ namespace Simpchat.Application.Features
 
             foreach (var message in chat.Messages)
             {
-                var messageReactions = await _messageReactionRepo.GetMessageReactionAsync(message.Id);
-                var messageReactionModels = messageReactions is not null
-                    ? messageReactions
-                        .GroupBy(mr => mr.ReactionId)
-                        .Select(g => new GetAllMessageReaction
-                        {
-                            Id = g.Key,
-                            Count = g.Count(),
-                            ImageUrl = g.First().Reaction.ImageUrl
-                        }).ToList()
-                    : new List<GetAllMessageReaction>();
+                var messageReactions = await _messageReactionRepo.GetMessageReactionsWithUsersAsync(message.Id);
+                var messageReactionModels = messageReactions
+                    .Select(mr => new MessageReactionDto
+                    {
+                        Id = mr.Id,
+                        ReactionType = mr.ReactionType.ToString(),
+                        UserId = mr.UserId,
+                        UserName = mr.User?.Username ?? string.Empty
+                    }).ToList();
 
                 var notificationId = await _notificationRepo.GetIdAsync(message.Id, userId);
 
@@ -262,7 +265,8 @@ namespace Simpchat.Application.Features
                     Content = message.Content,
                     FileUrl = message.FileUrl,
                     ReplyId = message.ReplyId,
-                    IsSeen = (await _notificationRepo.GetMessageSeenStatusAsync(message.Id)),
+                    IsSeen = message.IsSeen,
+                    SeenAt = message.SeenAt,
                     SenderAvatarUrl = message.Sender.AvatarUrl,
                     SenderUsername = message.Sender.Username,
                     SenderId = message.SenderId,

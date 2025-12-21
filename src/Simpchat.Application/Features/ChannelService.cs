@@ -28,6 +28,8 @@ namespace Simpchat.Application.Features
         private readonly IValidator<UpdateChatDto> _updateValidator;
         private readonly IValidator<PostChatDto> _createValidator;
         private readonly IChatBanRepository _chatBanRepo;
+        private readonly IChatHubService _chatHubService;
+        private readonly IRealTimeNotificationService _realTimeNotificationService;
         private const string BucketName = "channels-avatars";
 
         public ChannelService(
@@ -42,7 +44,9 @@ namespace Simpchat.Application.Features
             IChannelSubscriberRepository channelSubscriberRepo,
             IChatPermissionRepository chatPermissionRepository,
             IChatUserPermissionRepository chatUserPermissionRepository,
-            IChatBanRepository chatBanRepository)
+            IChatBanRepository chatBanRepository,
+            IChatHubService chatHubService,
+            IRealTimeNotificationService realTimeNotificationService)
         {
             _repo = repo;
             _userRepo = userRepo;
@@ -56,6 +60,8 @@ namespace Simpchat.Application.Features
             _chatPermissionRepository = chatPermissionRepository;
             _chatUserPermissionRepository = chatUserPermissionRepository;
             _chatBanRepo = chatBanRepository;
+            _chatHubService = chatHubService;
+            _realTimeNotificationService = realTimeNotificationService;
         }
 
         public async Task<Result> AddSubscriberAsync(Guid channelId, Guid userId, Guid requesterId)
@@ -67,6 +73,16 @@ namespace Simpchat.Application.Features
 
             // Check if requester is a subscriber of the channel
             if (!channel.IsChannelSubscriber(requesterId))
+            {
+                return Result.Failure(ApplicationErrors.ChatPermission.Denied);
+            }
+
+            // Check if requester has permission to add users (owner or has AddUsers permission)
+            var canAddUsers = channel.IsChannelOwner(requesterId) ||
+                              await _chatUserPermissionRepository.HasUserPermissionAsync(
+                                  channelId, requesterId, nameof(ChatPermissionTypes.AddUsers));
+
+            if (!canAddUsers)
             {
                 return Result.Failure(ApplicationErrors.ChatPermission.Denied);
             }
@@ -95,6 +111,15 @@ namespace Simpchat.Application.Features
             };
 
             await _channelSubscriberRepo.CreateAsync(channelSubscriber);
+
+            // Notify the user via SignalR that they've been added to the channel
+            await _chatHubService.NotifyUserAddedToChatAsync(
+                userId,
+                channelId,
+                channel.Name,
+                "channel",
+                channel.AvatarUrl
+            );
 
             return Result.Success();
         }
@@ -215,7 +240,16 @@ namespace Simpchat.Application.Features
                 return Result.Failure(ApplicationErrors.ChatPermission.Denied);
             }
 
+            // Get subscriber IDs before deletion to notify them
+            var subscriberIds = channel.Subscribers?.Select(s => s.UserId).ToList() ?? new List<Guid>();
+
             await _repo.DeleteAsync(channel);
+
+            // Notify all subscribers that the chat was deleted
+            if (subscriberIds.Count > 0)
+            {
+                await _realTimeNotificationService.NotifyChatDeletedAsync(channelId, subscriberIds);
+            }
 
             return Result.Success();
         }
@@ -247,7 +281,8 @@ namespace Simpchat.Application.Features
                 return Result.Failure(ApplicationErrors.Chat.IdNotFound);
             }
 
-            if (userId != requesterId)
+            var isRemovingByOther = userId != requesterId;
+            if (isRemovingByOther)
             {
                 var canManage = channel.IsChannelOwner(requesterId) ||
                                 await _chatUserPermissionRepository.HasUserPermissionAsync(
@@ -267,6 +302,12 @@ namespace Simpchat.Application.Features
             };
 
             await _channelSubscriberRepo.DeleteAsync(channelSubscriber);
+
+            // Notify the user if they were removed by someone else (not leaving voluntarily)
+            if (isRemovingByOther)
+            {
+                await _realTimeNotificationService.NotifyUserRemovedFromChatAsync(channelId, userId);
+            }
 
             return Result.Success();
         }
@@ -370,8 +411,11 @@ namespace Simpchat.Application.Features
                     {
                         Content = lastMessage?.Content,
                         FileUrl = lastMessage?.FileUrl,
+                        SenderId = lastMessage?.SenderId,
                         SenderUsername = lastMessage?.Sender.Username,
-                        SentAt = lastMessage?.SentAt
+                        SentAt = lastMessage?.SentAt,
+                        ReplyId = lastMessage?.ReplyId,
+                        IsSeen = lastMessage?.IsSeen ?? false
                     },
                     Name = channel.Name,
                     NotificationsCount = notificationsCount,

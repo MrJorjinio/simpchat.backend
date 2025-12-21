@@ -26,6 +26,15 @@ namespace Simpchat.Infrastructure.Persistence.Configurations.Messages
             builder.HasOne(m => m.ReplyTo)
                 .WithMany(r => r.Replies)
                 .HasForeignKey(m => m.ReplyId);
+
+            // Pinning configuration
+            builder.HasOne(m => m.PinnedBy)
+                .WithMany()
+                .HasForeignKey(m => m.PinnedById)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            builder.HasIndex(m => new { m.ChatId, m.IsPinned })
+                .HasFilter("\"IsPinned\" = true");
         }
     }
 }

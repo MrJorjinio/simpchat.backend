@@ -13,10 +13,14 @@ namespace Simpchat.Web.Controllers
     public class PermissionController : ControllerBase
     {
         private readonly IPermissionService _permissionService;
+        private readonly IRealTimeNotificationService _realTimeNotificationService;
 
-        public PermissionController(IPermissionService permissionService)
+        public PermissionController(
+            IPermissionService permissionService,
+            IRealTimeNotificationService realTimeNotificationService)
         {
             _permissionService = permissionService;
+            _realTimeNotificationService = realTimeNotificationService;
         }
 
         [HttpPost("grant")]
@@ -25,8 +29,13 @@ namespace Simpchat.Web.Controllers
             var requesterId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
 
             var response = await _permissionService.GrantPermissionAsync(dto, requesterId);
-            var apiResponse = response.ToApiResult();
 
+            if (response.IsSuccess)
+            {
+                await _realTimeNotificationService.NotifyPermissionGrantedAsync(dto.ChatId, dto.UserId, dto.PermissionName);
+            }
+
+            var apiResponse = response.ToApiResult();
             return apiResponse.ToActionResult();
         }
 
@@ -36,8 +45,13 @@ namespace Simpchat.Web.Controllers
             var requesterId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
 
             var response = await _permissionService.RevokePermissionAsync(dto, requesterId);
-            var apiResponse = response.ToApiResult();
 
+            if (response.IsSuccess)
+            {
+                await _realTimeNotificationService.NotifyPermissionRevokedAsync(dto.ChatId, dto.UserId, dto.PermissionName);
+            }
+
+            var apiResponse = response.ToApiResult();
             return apiResponse.ToActionResult();
         }
 
@@ -69,8 +83,13 @@ namespace Simpchat.Web.Controllers
             var requesterId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
 
             var response = await _permissionService.RevokeAllPermissionsAsync(chatId, userId, requesterId);
-            var apiResponse = response.ToApiResult();
 
+            if (response.IsSuccess)
+            {
+                await _realTimeNotificationService.NotifyAllPermissionsRevokedAsync(chatId, userId);
+            }
+
+            var apiResponse = response.ToApiResult();
             return apiResponse.ToActionResult();
         }
     }

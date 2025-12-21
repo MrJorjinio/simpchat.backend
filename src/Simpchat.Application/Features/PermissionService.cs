@@ -138,7 +138,9 @@ namespace Simpchat.Application.Features
                 return Result.Failure<UserChatPermissionsResponseDto>(ApplicationErrors.User.IdNotFound);
             }
 
-            var canView = await ValidateCanViewPermissionsAsync(chat, chatId, requesterId);
+            // Allow users to query their own permissions, or check if they have ManageUsers permission
+            var isQueryingOwnPermissions = requesterId == userId;
+            var canView = isQueryingOwnPermissions || await ValidateCanViewPermissionsAsync(chat, chatId, requesterId);
             if (!canView)
             {
                 return Result.Failure<UserChatPermissionsResponseDto>(ApplicationErrors.ChatPermission.Denied);

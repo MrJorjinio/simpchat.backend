@@ -130,7 +130,9 @@ namespace Simpchat.Web.Hubs
                         content = request.Content,
                         fileUrl = (string?)null,
                         replyId = request.ReplyId,
-                        sentAt = DateTimeOffset.UtcNow
+                        sentAt = DateTimeOffset.UtcNow,
+                        isSeen = false,
+                        seenAt = (DateTimeOffset?)null
                     });
 
                     // Broadcast notification to recipients
@@ -219,69 +221,47 @@ namespace Simpchat.Web.Hubs
         // ===== REACTION METHODS =====
 
         /// <summary>
-        /// Add a reaction to a message
+        /// Toggle a reaction on a message (add if not exists, remove if exists)
         /// </summary>
-        public async Task AddReaction(Guid chatId, Guid messageId, Guid reactionId)
+        /// <param name="chatId">The chat ID</param>
+        /// <param name="messageId">The message ID</param>
+        /// <param name="reactionType">One of: Like, Love, Laugh, Sad, Angry</param>
+        public async Task ToggleReaction(Guid chatId, Guid messageId, string reactionType)
         {
             try
             {
                 var userId = GetUserId();
                 if (userId == Guid.Empty) return;
 
-                var result = await _messageReactionService.CreateAsync(messageId, reactionId, userId);
+                // Parse the reaction type
+                if (!Enum.TryParse<Domain.Enums.ReactionType>(reactionType, ignoreCase: true, out var parsedReactionType))
+                {
+                    await Clients.Caller.SendAsync("Error", new { error = $"Invalid reaction type. Valid types are: {string.Join(", ", Enum.GetNames<Domain.Enums.ReactionType>())}" });
+                    return;
+                }
+
+                var result = await _messageReactionService.ToggleReactionAsync(messageId, parsedReactionType, userId);
 
                 if (result.IsSuccess)
                 {
-                    await Clients.Group($"chat_{chatId}").SendAsync("ReactionAdded", new
+                    var wasAdded = result.Value;
+                    await Clients.Group($"chat_{chatId}").SendAsync(wasAdded ? "ReactionAdded" : "ReactionRemoved", new
                     {
                         messageId,
-                        reactionId,
+                        reactionType,
                         userId,
                         chatId
                     });
                 }
                 else
                 {
-                    await Clients.Caller.SendAsync("Error", new { error = result.Error?.Message ?? "Failed to add reaction" });
+                    await Clients.Caller.SendAsync("Error", new { error = result.Error?.Message ?? "Failed to toggle reaction" });
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error adding reaction");
-                await Clients.Caller.SendAsync("Error", new { error = "Failed to add reaction" });
-            }
-        }
-
-        /// <summary>
-        /// Remove a reaction from a message
-        /// </summary>
-        public async Task RemoveReaction(Guid chatId, Guid messageId)
-        {
-            try
-            {
-                var userId = GetUserId();
-                if (userId == Guid.Empty) return;
-
-                var result = await _messageReactionService.DeleteAsync(messageId, userId);
-
-                if (result.IsSuccess)
-                {
-                    await Clients.Group($"chat_{chatId}").SendAsync("ReactionRemoved", new
-                    {
-                        messageId,
-                        userId,
-                        chatId
-                    });
-                }
-                else
-                {
-                    await Clients.Caller.SendAsync("Error", new { error = result.Error?.Message ?? "Failed to remove reaction" });
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error removing reaction");
-                await Clients.Caller.SendAsync("Error", new { error = "Failed to remove reaction" });
+                _logger.LogError(ex, "Error toggling reaction");
+                await Clients.Caller.SendAsync("Error", new { error = "Failed to toggle reaction" });
             }
         }
 
@@ -359,6 +339,42 @@ namespace Simpchat.Web.Hubs
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error sending stop typing indicator");
+            }
+        }
+
+        // ===== READ RECEIPTS =====
+
+        /// <summary>
+        /// Mark all messages in a chat as seen by the current user
+        /// </summary>
+        public async Task MarkMessagesAsSeen(Guid chatId)
+        {
+            try
+            {
+                var userId = GetUserId();
+                if (userId == Guid.Empty) return;
+
+                var result = await _messageService.MarkMessagesAsSeenAsync(chatId, userId);
+
+                if (result.IsSuccess && result.Value.Any())
+                {
+                    // Broadcast to all chat participants that these messages are now seen
+                    await Clients.Group($"chat_{chatId}").SendAsync("MessagesMarkedSeen", new
+                    {
+                        chatId,
+                        messageIds = result.Value,
+                        seenByUserId = userId,
+                        seenAt = DateTimeOffset.UtcNow
+                    });
+
+                    _logger.LogInformation("User {UserId} marked {Count} messages as seen in chat {ChatId}",
+                        userId, result.Value.Count, chatId);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error marking messages as seen");
+                await Clients.Caller.SendAsync("Error", new { error = "Failed to mark messages as seen" });
             }
         }
 

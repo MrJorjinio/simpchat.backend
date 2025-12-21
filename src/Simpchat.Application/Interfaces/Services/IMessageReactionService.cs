@@ -1,17 +1,23 @@
-﻿
 using Simpchat.Application.Models.Reactions;
+using Simpchat.Domain.Enums;
 using Simpchat.Shared.Models;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Simpchat.Application.Interfaces.Services
 {
     public interface IMessageReactionService
     {
-        Task<Result<Guid>> CreateAsync(Guid messageId, Guid reactionId, Guid userId);
-        Task<Result> DeleteAsync(Guid messageId, Guid userId);
+        /// <summary>
+        /// Toggle a reaction on a message. If the reaction exists, remove it. If not, add it.
+        /// </summary>
+        /// <param name="messageId">The message to react to</param>
+        /// <param name="reactionType">The type of reaction</param>
+        /// <param name="userId">The user adding/removing the reaction</param>
+        /// <returns>Result indicating if reaction was added (true) or removed (false)</returns>
+        Task<Result<bool>> ToggleReactionAsync(Guid messageId, ReactionType reactionType, Guid userId);
+
+        /// <summary>
+        /// Get all reactions for a message grouped by type
+        /// </summary>
+        Task<Result<List<MessageReactionSummaryDto>>> GetMessageReactionsAsync(Guid messageId);
     }
 }

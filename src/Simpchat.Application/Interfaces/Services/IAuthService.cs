@@ -16,5 +16,6 @@ namespace Simpchat.Application.Interfaces.Services
         Task<Result<string>> LoginAsync(LoginUserDto loginUserDto);
         Task<Result> UpdatePasswordAsync(Guid userId, UpdatePasswordDto updatePasswordDto);
         Task<Result> ResetPasswordAsync(Guid userId, ResetPasswordDto resetPasswordDto);
+        Task<Result> ResetPasswordByEmailAsync(ResetPasswordByEmailDto resetPasswordByEmailDto);
     }
 }

@@ -38,6 +38,10 @@ builder.Services.AddSignalR(options =>
 {
     options.EnableDetailedErrors = builder.Environment.IsDevelopment();
     options.MaximumReceiveMessageSize = 102400; // 100 KB
+}).AddJsonProtocol(options =>
+{
+    options.PayloadSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
+    options.PayloadSerializerOptions.Converters.Add(new JsonStringEnumConverter());
 });
 
 builder.Services.AddCors(options =>
@@ -47,7 +51,9 @@ builder.Services.AddCors(options =>
         policy
             .WithOrigins(
                 "http://localhost:5173",
-                "http://192.168.100.25:5173"
+                "http://localhost:5180",
+                "http://192.168.100.25:5173",
+                "http://10.30.0.112:5173"
             )
             .AllowAnyHeader()
             .AllowAnyMethod()

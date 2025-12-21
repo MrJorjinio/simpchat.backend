@@ -158,6 +158,7 @@ namespace Simpchat.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasDefaultValueSql("gen_random_uuid()");
 
@@ -367,8 +368,23 @@ namespace Simpchat.Infrastructure.Persistence.Migrations
                     b.Property<string>("FileUrl")
                         .HasColumnType("text");
 
+                    b.Property<bool>("IsPinned")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsSeen")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTimeOffset?>("PinnedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("PinnedById")
+                        .HasColumnType("uuid");
+
                     b.Property<Guid?>("ReplyId")
                         .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("SeenAt")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<Guid>("SenderId")
                         .HasColumnType("uuid");
@@ -380,11 +396,14 @@ namespace Simpchat.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ChatId");
+                    b.HasIndex("PinnedById");
 
                     b.HasIndex("ReplyId");
 
                     b.HasIndex("SenderId");
+
+                    b.HasIndex("ChatId", "IsPinned")
+                        .HasFilter("\"IsPinned\" = true");
 
                     b.ToTable("Messages");
                 });
@@ -394,8 +413,9 @@ namespace Simpchat.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("MessageId")
                         .HasColumnType("uuid");
 
-                    b.Property<Guid>("ReactionId")
-                        .HasColumnType("uuid");
+                    b.Property<string>("ReactionType")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
 
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid");
@@ -403,16 +423,9 @@ namespace Simpchat.Infrastructure.Persistence.Migrations
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uuid")
-                        .HasDefaultValueSql("gen_random_uuid()");
+                    b.HasKey("MessageId", "ReactionType", "UserId");
 
-                    b.HasKey("MessageId", "ReactionId", "UserId");
-
-                    b.HasIndex("Id")
-                        .IsUnique();
-
-                    b.HasIndex("ReactionId");
+                    b.HasIndex("MessageId");
 
                     b.HasIndex("UserId");
 
@@ -442,27 +455,6 @@ namespace Simpchat.Infrastructure.Persistence.Migrations
                     b.HasIndex("ReceiverId");
 
                     b.ToTable("Notifications");
-                });
-
-            modelBuilder.Entity("Simpchat.Domain.Entities.Reaction", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasDefaultValueSql("gen_random_uuid()");
-
-                    b.Property<string>("ImageUrl")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("Reactions");
                 });
 
             modelBuilder.Entity("Simpchat.Domain.Entities.User", b =>
@@ -524,6 +516,34 @@ namespace Simpchat.Infrastructure.Persistence.Migrations
                         .IsUnique();
 
                     b.ToTable("Users");
+                });
+
+            modelBuilder.Entity("Simpchat.Domain.Entities.UserBan", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<DateTime>("BannedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<Guid>("BlockedUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("BlockerId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BlockedUserId");
+
+                    b.HasIndex("BlockerId", "BlockedUserId")
+                        .IsUnique();
+
+                    b.ToTable("UserBans", (string)null);
                 });
 
             modelBuilder.Entity("Simpchat.Domain.Entities.UserOtp", b =>
@@ -729,6 +749,11 @@ namespace Simpchat.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("Simpchat.Domain.Entities.User", "PinnedBy")
+                        .WithMany()
+                        .HasForeignKey("PinnedById")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("Simpchat.Domain.Entities.Message", "ReplyTo")
                         .WithMany("Replies")
                         .HasForeignKey("ReplyId");
@@ -740,6 +765,8 @@ namespace Simpchat.Infrastructure.Persistence.Migrations
                         .IsRequired();
 
                     b.Navigation("Chat");
+
+                    b.Navigation("PinnedBy");
 
                     b.Navigation("ReplyTo");
 
@@ -754,12 +781,6 @@ namespace Simpchat.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("Simpchat.Domain.Entities.Reaction", "Reaction")
-                        .WithMany("MessagesAppliedTo")
-                        .HasForeignKey("ReactionId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
                     b.HasOne("Simpchat.Domain.Entities.User", "User")
                         .WithMany("MessageReactions")
                         .HasForeignKey("UserId")
@@ -767,8 +788,6 @@ namespace Simpchat.Infrastructure.Persistence.Migrations
                         .IsRequired();
 
                     b.Navigation("Message");
-
-                    b.Navigation("Reaction");
 
                     b.Navigation("User");
                 });
@@ -801,6 +820,25 @@ namespace Simpchat.Infrastructure.Persistence.Migrations
                         .IsRequired();
 
                     b.Navigation("Role");
+                });
+
+            modelBuilder.Entity("Simpchat.Domain.Entities.UserBan", b =>
+                {
+                    b.HasOne("Simpchat.Domain.Entities.User", "BlockedUser")
+                        .WithMany("BlockedByUsers")
+                        .HasForeignKey("BlockedUserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Simpchat.Domain.Entities.User", "Blocker")
+                        .WithMany("BlockedUsers")
+                        .HasForeignKey("BlockerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("BlockedUser");
+
+                    b.Navigation("Blocker");
                 });
 
             modelBuilder.Entity("Simpchat.Domain.Entities.UserOtp", b =>
@@ -865,13 +903,12 @@ namespace Simpchat.Infrastructure.Persistence.Migrations
                     b.Navigation("Replies");
                 });
 
-            modelBuilder.Entity("Simpchat.Domain.Entities.Reaction", b =>
-                {
-                    b.Navigation("MessagesAppliedTo");
-                });
-
             modelBuilder.Entity("Simpchat.Domain.Entities.User", b =>
                 {
+                    b.Navigation("BlockedByUsers");
+
+                    b.Navigation("BlockedUsers");
+
                     b.Navigation("ChatBans");
 
                     b.Navigation("ChatPermissions");

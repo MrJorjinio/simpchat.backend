@@ -11,7 +11,6 @@ namespace Simpchat.Infrastructure.Persistence
     public class SimpchatDbContext : DbContext
     {
         public DbSet<User> Users { get; set; }
-        public DbSet<Reaction> Reactions { get; set; }
         public DbSet<MessageReaction> MessagesReactions { get; set; }
         public DbSet<Message> Messages { get; set; }
         public DbSet<ChatUserPermission> ChatsUsersPermissions { get; set; }
@@ -27,6 +26,7 @@ namespace Simpchat.Infrastructure.Persistence
         public DbSet<GlobalRolePermission> GlobalRolesPermissions { get; set; }
         public DbSet<Notification> Notifications { get; set; }
         public DbSet<ChatBan> ChatBans { get; set; }
+        public DbSet<UserBan> UserBans { get; set; }
         public DbSet<UserOtp> UserOtps { get; set; }
         public DbSet<EmailOtp> EmailOtps { get; set; }
         public SimpchatDbContext(DbContextOptions<SimpchatDbContext> options)
