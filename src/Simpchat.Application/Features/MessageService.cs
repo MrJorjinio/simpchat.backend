@@ -419,16 +419,17 @@ namespace Simpchat.Application.Features
                 }
             }
 
-            foreach (var recipientId in recipientIds)
+            if (recipientIds.Any())
             {
-                var notification = new Notification
+                // Batch create all notifications at once instead of one by one
+                var notifications = recipientIds.Select(recipientId => new Notification
                 {
                     MessageId = message.Id,
                     ReceiverId = recipientId,
                     IsSeen = false
-                };
+                }).ToList();
 
-                await _notificationRepository.CreateAsync(notification);
+                await _notificationRepository.CreateBatchAsync(notifications);
             }
         }
 
@@ -612,8 +613,11 @@ namespace Simpchat.Application.Features
 
             if (messageIds.Any())
             {
-                // Mark messages as seen
+                // Mark messages as seen - SignalR will broadcast the update
                 await _repo.MarkMessagesAsSeenAsync(chatId, userId);
+
+                // Mark notifications as seen in a single batch update (no loop)
+                await _notificationRepository.MarkSeenByMessageIdsAsync(messageIds, userId);
             }
 
             return Result.Success(messageIds);

@@ -91,21 +91,13 @@ namespace Simpchat.Infrastructure.Persistence.Repositories
 
         public async Task MarkMessagesAsSeenAsync(Guid chatId, Guid userId)
         {
-            // Mark all messages in this chat that are NOT from this user as seen
-            var unseenMessages = await _dbContext.Messages
+            // Single SQL UPDATE - no loops, no fetching entities
+            var now = DateTimeOffset.UtcNow;
+            await _dbContext.Messages
                 .Where(m => m.ChatId == chatId && m.SenderId != userId && !m.IsSeen)
-                .ToListAsync();
-
-            if (unseenMessages.Any())
-            {
-                var now = DateTimeOffset.UtcNow;
-                foreach (var message in unseenMessages)
-                {
-                    message.IsSeen = true;
-                    message.SeenAt = now;
-                }
-                await _dbContext.SaveChangesAsync();
-            }
+                .ExecuteUpdateAsync(s => s
+                    .SetProperty(m => m.IsSeen, true)
+                    .SetProperty(m => m.SeenAt, now));
         }
     }
 }
