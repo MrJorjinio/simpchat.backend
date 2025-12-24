@@ -1,5 +1,6 @@
 ﻿using FluentValidation;
 using Microsoft.AspNetCore.Mvc;
+using Simpchat.Application.Common.Pagination;
 using Simpchat.Application.Errors;
 using Simpchat.Application.Extentions;
 using Simpchat.Application.Interfaces.File;
@@ -336,6 +337,28 @@ namespace Simpchat.Application.Features
             }
 
             return modeledResults;
+        }
+
+        public async Task<Result<PaginationResult<SearchChatResponseDto>>> SearchPaginatedAsync(string searchTerm, int page, int pageSize)
+        {
+            var (channels, totalCount) = await _repo.SearchPaginatedAsync(searchTerm, page, pageSize);
+
+            var modeledResults = channels.Select(channel => new SearchChatResponseDto
+            {
+                EntityId = channel.Id,
+                ChatId = channel.Id,
+                AvatarUrl = channel.AvatarUrl,
+                DisplayName = channel.Name,
+                ChatType = ChatTypes.Channel
+            }).ToList();
+
+            return new PaginationResult<SearchChatResponseDto>
+            {
+                Data = modeledResults,
+                PageNumber = page,
+                PageSize = pageSize,
+                TotalCount = totalCount
+            };
         }
 
         public async Task<Result> UpdateAsync(Guid channelId, UpdateChatDto updateChatDto, UploadFileRequest? avatar, Guid userId)

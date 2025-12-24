@@ -65,6 +65,30 @@ namespace Simpchat.Infrastructure.Persistence.Repositories
                 .ToListAsync();
         }
 
+        public async Task<(List<Channel> Items, int TotalCount)> SearchPaginatedAsync(string term, int page, int pageSize)
+        {
+            // Require at least 3 characters for meaningful search
+            if (string.IsNullOrWhiteSpace(term) || term.Length < 3)
+            {
+                return (new List<Channel>(), 0);
+            }
+
+            var query = _dbContext.Channels
+                .Include(c => c.Chat)
+                .Where(c => c.Chat != null && c.Chat.PrivacyType == Domain.Enums.ChatPrivacyTypes.Public) // Only search public channels
+                .Where(c => EF.Functions.ILike(c.Name, $"%{term}%"))
+                .OrderBy(c => c.Name);
+
+            var totalCount = await query.CountAsync();
+
+            var items = await query
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
+            return (items, totalCount);
+        }
+
         public async Task UpdateAsync(Channel entity)
         {
             _dbContext.Channels.Update(entity);

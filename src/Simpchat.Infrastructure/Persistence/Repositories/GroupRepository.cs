@@ -96,6 +96,30 @@ namespace Simpchat.Infrastructure.Persistence.Repositories
                 .ToListAsync();
         }
 
+        public async Task<(List<Group> Items, int TotalCount)> SearchPaginatedAsync(string term, int page, int pageSize)
+        {
+            // Require at least 3 characters for meaningful search
+            if (string.IsNullOrWhiteSpace(term) || term.Length < 3)
+            {
+                return (new List<Group>(), 0);
+            }
+
+            var query = _dbContext.Groups
+                .Include(g => g.Chat)
+                .Where(g => g.Chat != null && g.Chat.PrivacyType == Domain.Enums.ChatPrivacyTypes.Public) // Only search public groups
+                .Where(g => EF.Functions.ILike(g.Name, $"%{term}%"))
+                .OrderBy(g => g.Name);
+
+            var totalCount = await query.CountAsync();
+
+            var items = await query
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
+            return (items, totalCount);
+        }
+
         public async Task UpdateAsync(Group entity)
         {
             _dbContext.Groups.Update(entity);

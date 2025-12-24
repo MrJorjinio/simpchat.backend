@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.OpenApi.Extensions;
+using Simpchat.Application.Common.Pagination;
 using Simpchat.Application.Extentions;
 using Simpchat.Application.Interfaces.Services;
 
@@ -55,6 +56,18 @@ namespace Simpchat.Web.Controllers
             var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
 
             var response = await _userService.SearchAsync(username, userId);
+            var apiResponse = response.ToApiResult();
+
+            return apiResponse.ToActionResult();
+        }
+
+        [HttpGet("search")]
+        [Authorize]
+        public async Task<IActionResult> SearchPaginatedAsync([FromQuery] SearchPageModel model)
+        {
+            var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+
+            var response = await _userService.SearchPaginatedAsync(model.SearchTerm, userId, model.Page, model.PageSize);
             var apiResponse = response.ToApiResult();
 
             return apiResponse.ToActionResult();
