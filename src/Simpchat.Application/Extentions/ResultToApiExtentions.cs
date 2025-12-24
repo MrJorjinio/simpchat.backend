@@ -73,18 +73,34 @@ namespace Simpchat.Application.Extentions
                 "UserReaction.NotFoundWithUserIdAndReactionId" or
                 "Notification.IdNotFound" or
                 "GlobalRole.NameNotFound" or
-                "Chat.Permission.NameNotFound" => (int)HttpStatusCode.NotFound,
+                "Chat.Permission.NameNotFound" or
+                "Chat.Ban.NotFound" or
+                "User.Ban.NotFound" or
+                "Message.Pinning.NotPinned" => (int)HttpStatusCode.NotFound,
 
                 // Conflicts
                 "User.UsernameAlreadyExists" or
-                "User.EmailAlreadyExists" => (int)HttpStatusCode.Conflict,
+                "User.EmailAlreadyExists" or
+                "User.AlreadyMember" or
+                "Chat.Ban.AlreadyBanned" or
+                "User.Ban.AlreadyBanned" or
+                "Message.Pinning.AlreadyPinned" => (int)HttpStatusCode.Conflict,
 
                 // Forbidden actions
                 "User.NotParticipatedInChat" or
                 "User.CanNotDeleteAdmin" or
-                "Chat.Permission.Denied" => (int)HttpStatusCode.Forbidden,
+                "Chat.Permission.Denied" or
+                "Chat.Ban.UserBanned" or
+                "Chat.Ban.CannotBanOwner" or
+                "User.Ban.UserBanned" or
+                "User.Ban.CannotMessageBannedUser" => (int)HttpStatusCode.Forbidden,
 
-                "Chat.NotValidChatType" => (int)HttpStatusCode.BadRequest,
+                "Chat.NotValidChatType" or
+                "Chat.Ban.CannotBanSelf" or
+                "User.Ban.CannotBanSelf" or
+                "Message.Pinning.PinLimitReached" or
+                "File.TooLarge" or
+                "File.InvalidType" => (int)HttpStatusCode.BadRequest,
 
                 "Otp.Expired" => (int)HttpStatusCode.Gone,
 

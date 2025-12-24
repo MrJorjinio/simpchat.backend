@@ -87,6 +87,18 @@ namespace Simpchat.Web.Controllers
             return apiResponse.ToActionResult();
         }
 
+        [HttpPost("remove-member")]
+        [Authorize]
+        public async Task<IActionResult> RemoveMemberAsync(Guid chatId, Guid removingUserId)
+        {
+            var requesterId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+
+            var response = await _groupService.DeleteMemberAsync(removingUserId, chatId, requesterId);
+            var apiResponse = response.ToApiResult();
+
+            return apiResponse.ToActionResult();
+        }
+
         [HttpDelete]
         [Authorize]
         public async Task<IActionResult> DeleteAsync(Guid chatId)
