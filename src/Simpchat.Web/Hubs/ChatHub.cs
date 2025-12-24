@@ -101,6 +101,11 @@ namespace Simpchat.Web.Hubs
                 var userId = GetUserId();
                 if (userId == Guid.Empty) return;
 
+                // Get sender details ONCE and reuse
+                var senderResult = await _userService.GetByIdAsync(userId, userId);
+                var senderUsername = senderResult.IsSuccess ? senderResult.Value.Username : "Unknown";
+                var senderAvatarUrl = senderResult.IsSuccess ? senderResult.Value.AvatarUrl : null;
+
                 var messageDto = new PostMessageDto
                 {
                     ChatId = request.ChatId,
@@ -114,19 +119,24 @@ namespace Simpchat.Web.Hubs
 
                 if (result.IsSuccess)
                 {
-                    // Broadcast to chat participants
+                    // Broadcast to chat participants (sender info already fetched above)
                     await Clients.Group($"chat_{request.ChatId}").SendAsync("ReceiveMessage", new
                     {
                         messageId = result.Value,
                         chatId = request.ChatId,
                         senderId = userId,
+                        senderUsername = senderUsername,
+                        senderAvatarUrl = senderAvatarUrl,
                         content = request.Content,
+                        fileUrl = (string?)null,
                         replyId = request.ReplyId,
-                        sentAt = DateTimeOffset.UtcNow
+                        sentAt = DateTimeOffset.UtcNow,
+                        isSeen = false,
+                        seenAt = (DateTimeOffset?)null
                     });
 
-                    // Broadcast notification to recipients
-                    await BroadcastNewNotificationAsync(userId, request, result.Value);
+                    // Broadcast notification to recipients (pass sender info to avoid re-fetching)
+                    await BroadcastNewNotificationAsync(userId, senderUsername, senderAvatarUrl, request, result.Value);
                 }
                 else
                 {
@@ -211,69 +221,47 @@ namespace Simpchat.Web.Hubs
         // ===== REACTION METHODS =====
 
         /// <summary>
-        /// Add a reaction to a message
+        /// Toggle a reaction on a message (add if not exists, remove if exists)
         /// </summary>
-        public async Task AddReaction(Guid chatId, Guid messageId, Guid reactionId)
+        /// <param name="chatId">The chat ID</param>
+        /// <param name="messageId">The message ID</param>
+        /// <param name="reactionType">One of: Like, Love, Laugh, Sad, Angry</param>
+        public async Task ToggleReaction(Guid chatId, Guid messageId, string reactionType)
         {
             try
             {
                 var userId = GetUserId();
                 if (userId == Guid.Empty) return;
 
-                var result = await _messageReactionService.CreateAsync(messageId, reactionId, userId);
+                // Parse the reaction type
+                if (!Enum.TryParse<Domain.Enums.ReactionType>(reactionType, ignoreCase: true, out var parsedReactionType))
+                {
+                    await Clients.Caller.SendAsync("Error", new { error = $"Invalid reaction type. Valid types are: {string.Join(", ", Enum.GetNames<Domain.Enums.ReactionType>())}" });
+                    return;
+                }
+
+                var result = await _messageReactionService.ToggleReactionAsync(messageId, parsedReactionType, userId);
 
                 if (result.IsSuccess)
                 {
-                    await Clients.Group($"chat_{chatId}").SendAsync("ReactionAdded", new
+                    var wasAdded = result.Value;
+                    await Clients.Group($"chat_{chatId}").SendAsync(wasAdded ? "ReactionAdded" : "ReactionRemoved", new
                     {
                         messageId,
-                        reactionId,
+                        reactionType,
                         userId,
                         chatId
                     });
                 }
                 else
                 {
-                    await Clients.Caller.SendAsync("Error", new { error = result.Error?.Message ?? "Failed to add reaction" });
+                    await Clients.Caller.SendAsync("Error", new { error = result.Error?.Message ?? "Failed to toggle reaction" });
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error adding reaction");
-                await Clients.Caller.SendAsync("Error", new { error = "Failed to add reaction" });
-            }
-        }
-
-        /// <summary>
-        /// Remove a reaction from a message
-        /// </summary>
-        public async Task RemoveReaction(Guid chatId, Guid messageId)
-        {
-            try
-            {
-                var userId = GetUserId();
-                if (userId == Guid.Empty) return;
-
-                var result = await _messageReactionService.DeleteAsync(messageId, userId);
-
-                if (result.IsSuccess)
-                {
-                    await Clients.Group($"chat_{chatId}").SendAsync("ReactionRemoved", new
-                    {
-                        messageId,
-                        userId,
-                        chatId
-                    });
-                }
-                else
-                {
-                    await Clients.Caller.SendAsync("Error", new { error = result.Error?.Message ?? "Failed to remove reaction" });
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error removing reaction");
-                await Clients.Caller.SendAsync("Error", new { error = "Failed to remove reaction" });
+                _logger.LogError(ex, "Error toggling reaction");
+                await Clients.Caller.SendAsync("Error", new { error = "Failed to toggle reaction" });
             }
         }
 
@@ -351,6 +339,42 @@ namespace Simpchat.Web.Hubs
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error sending stop typing indicator");
+            }
+        }
+
+        // ===== READ RECEIPTS =====
+
+        /// <summary>
+        /// Mark all messages in a chat as seen by the current user
+        /// </summary>
+        public async Task MarkMessagesAsSeen(Guid chatId)
+        {
+            try
+            {
+                var userId = GetUserId();
+                if (userId == Guid.Empty) return;
+
+                var result = await _messageService.MarkMessagesAsSeenAsync(chatId, userId);
+
+                if (result.IsSuccess && result.Value.Any())
+                {
+                    // Broadcast to all chat participants that these messages are now seen
+                    await Clients.Group($"chat_{chatId}").SendAsync("MessagesMarkedSeen", new
+                    {
+                        chatId,
+                        messageIds = result.Value,
+                        seenByUserId = userId,
+                        seenAt = DateTimeOffset.UtcNow
+                    });
+
+                    _logger.LogInformation("User {UserId} marked {Count} messages as seen in chat {ChatId}",
+                        userId, result.Value.Count, chatId);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error marking messages as seen");
+                await Clients.Caller.SendAsync("Error", new { error = "Failed to mark messages as seen" });
             }
         }
 
@@ -483,7 +507,7 @@ namespace Simpchat.Web.Hubs
             }
         }
 
-        private async Task BroadcastNewNotificationAsync(Guid senderId, SendMessageRequest request, Guid messageId)
+        private async Task BroadcastNewNotificationAsync(Guid senderId, string senderUsername, string? senderAvatarUrl, SendMessageRequest request, Guid messageId)
         {
             try
             {
@@ -493,66 +517,52 @@ namespace Simpchat.Web.Hubs
 
                 if (request.ReceiverId.HasValue && request.ReceiverId.Value != Guid.Empty)
                 {
-                    // Direct conversation
+                    // Direct conversation - use sender info as chat name/avatar
                     recipientIds.Add(request.ReceiverId.Value);
-
-                    // For conversation, chat name/avatar is sender's info (from recipient's perspective)
-                    var senderResult = await _userService.GetByIdAsync(senderId, senderId);
-                    if (senderResult.IsSuccess)
-                    {
-                        chatName = senderResult.Value.Username;
-                        chatAvatar = senderResult.Value.AvatarUrl;
-                    }
+                    chatName = senderUsername;
+                    chatAvatar = senderAvatarUrl ?? "";
                 }
                 else if (request.ChatId.HasValue)
                 {
-                    // Group or channel chat
-                    var profileResult = await _chatService.GetProfileAsync(request.ChatId.Value, senderId);
-                    if (profileResult.IsSuccess)
+                    // Group or channel chat - use lightweight query instead of heavy GetProfileAsync
+                    var chatResult = await _chatService.GetBasicInfoAsync(request.ChatId.Value);
+                    if (chatResult.IsSuccess)
                     {
-                        var profile = profileResult.Value;
-                        chatName = profile.Name;
-                        chatAvatar = profile.AvatarUrl;
-                        recipientIds = profile.Members
-                            .Where(m => m.UserId != senderId)
-                            .Select(m => m.UserId)
+                        chatName = chatResult.Value.Name;
+                        chatAvatar = chatResult.Value.AvatarUrl ?? "";
+                        recipientIds = chatResult.Value.MemberIds
+                            .Where(id => id != senderId)
                             .ToList();
                     }
                 }
 
                 if (recipientIds.Any())
                 {
-                    // Get sender details for notification
-                    var senderResult = await _userService.GetByIdAsync(senderId, senderId);
-                    if (senderResult.IsSuccess)
+                    var notificationPayload = new
                     {
-                        var sender = senderResult.Value;
-                        var notificationPayload = new
-                        {
-                            messageId,
-                            chatId = request.ChatId ?? Guid.Empty,
-                            chatName,
-                            chatAvatar,
-                            senderName = sender.Username,
-                            content = request.Content,
-                            fileUrl = (string)null,
-                            sentTime = DateTimeOffset.UtcNow
-                        };
+                        messageId,
+                        chatId = request.ChatId ?? Guid.Empty,
+                        chatName,
+                        chatAvatar,
+                        senderName = senderUsername,
+                        content = request.Content,
+                        fileUrl = (string?)null,
+                        sentTime = DateTimeOffset.UtcNow
+                    };
 
-                        // Broadcast to each recipient's connections
-                        foreach (var recipientId in recipientIds)
+                    // Broadcast to each recipient's connections
+                    foreach (var recipientId in recipientIds)
+                    {
+                        var connections = _presenceService.GetUserConnections(recipientId);
+                        foreach (var connectionId in connections)
                         {
-                            var connections = _presenceService.GetUserConnections(recipientId);
-                            foreach (var connectionId in connections)
+                            try
                             {
-                                try
-                                {
-                                    await Clients.Client(connectionId).SendAsync("NewNotification", notificationPayload);
-                                }
-                                catch (Exception ex)
-                                {
-                                    _logger.LogError(ex, "Failed to send notification to connection {ConnectionId}", connectionId);
-                                }
+                                await Clients.Client(connectionId).SendAsync("NewNotification", notificationPayload);
+                            }
+                            catch (Exception ex)
+                            {
+                                _logger.LogError(ex, "Failed to send notification to connection {ConnectionId}", connectionId);
                             }
                         }
                     }

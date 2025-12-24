@@ -1,107 +1,74 @@
-﻿using Simpchat.Application.Errors;
+using Simpchat.Application.Errors;
 using Simpchat.Application.Interfaces.Repositories;
 using Simpchat.Application.Interfaces.Services;
-
 using Simpchat.Application.Models.Reactions;
 using Simpchat.Domain.Entities;
+using Simpchat.Domain.Enums;
 using Simpchat.Shared.Models;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Simpchat.Application.Features
 {
     internal class MessageReactionService : IMessageReactionService
     {
         private readonly IMessageReactionRepository _repo;
-        private readonly IReactionRepository _reactionRepo;
-        private readonly IChatRepository _chatRepo;
-        private readonly IUserRepository _userRepo;
         private readonly IMessageRepository _messageRepo;
+
         public MessageReactionService(
             IMessageReactionRepository repo,
-            IReactionRepository reactionRepo,
-            IChatRepository chatRepo,
-            IUserRepository userRepo,
             IMessageRepository messageRepo)
         {
             _repo = repo;
-            _reactionRepo = reactionRepo;
-            _chatRepo = chatRepo;
-            _userRepo = userRepo;
             _messageRepo = messageRepo;
         }
 
-        public async Task<Result<Guid>> CreateAsync(Guid messageId, Guid reactionId, Guid userId)
+        public async Task<Result<bool>> ToggleReactionAsync(Guid messageId, ReactionType reactionType, Guid userId)
         {
-            var reaction = await _repo.GetByIdAsync(reactionId);
-
-            if (reaction is null)
-            {
-                return Result.Failure<Guid>(ApplicationErrors.Reaction.IdNotFound);
-            }
-
-            var message = await _repo.GetByIdAsync(messageId);
-
+            // Check if message exists
+            var message = await _messageRepo.GetByIdAsync(messageId);
             if (message is null)
             {
-                return Result.Failure<Guid>(ApplicationErrors.Message.IdNotFound);
+                return Result.Failure<bool>(ApplicationErrors.Message.IdNotFound);
             }
 
-            var user = await _userRepo.GetByIdAsync(userId);
+            // Check if user already has this reaction on this message
+            var existingReaction = await _repo.FindReactionAsync(messageId, userId, reactionType);
 
-            if (user is null)
+            if (existingReaction is not null)
             {
-                return Result.Failure<Guid>(ApplicationErrors.User.IdNotFound);
+                // Remove the reaction (undo)
+                await _repo.DeleteAsync(existingReaction);
+                return Result.Success(false); // false = reaction was removed
             }
 
-            var messageReaction = new MessageReaction
+            // Add the reaction
+            var newReaction = new MessageReaction
             {
                 MessageId = messageId,
                 UserId = userId,
-                ReactionId = reactionId
+                ReactionType = reactionType,
+                CreatedAt = DateTimeOffset.UtcNow
             };
 
-            await _repo.CreateAsync(messageReaction);
-
-            return messageReaction.Id;
+            await _repo.CreateAsync(newReaction);
+            return Result.Success(true); // true = reaction was added
         }
 
-        public async Task<Result> DeleteAsync(Guid messageId, Guid userId)
+        public async Task<Result<List<MessageReactionSummaryDto>>> GetMessageReactionsAsync(Guid messageId)
         {
-            var message = await _repo.GetByIdAsync(messageId);
+            var reactions = await _repo.GetMessageReactionsWithUsersAsync(messageId);
 
-            if (message is null)
-            {
-                return Result.Failure<Guid>(ApplicationErrors.Message.IdNotFound);
-            }
+            // Group reactions by type and count them
+            var summary = reactions
+                .GroupBy(r => r.ReactionType)
+                .Select(g => new MessageReactionSummaryDto
+                {
+                    ReactionType = g.Key.ToString(),
+                    Count = g.Count(),
+                    UserIds = g.Select(r => r.UserId.ToString()).ToList()
+                })
+                .ToList();
 
-            var user = await _userRepo.GetByIdAsync(userId);
-
-            if (user is null)
-            {
-                return Result.Failure<Guid>(ApplicationErrors.User.IdNotFound);
-            }
-
-            var userReactionId = await _repo.GetIdAsync(messageId, userId);
-
-            if (userReactionId is null)
-            {
-                return Result.Failure<Guid>(ApplicationErrors.UserReaction.NotFoundWithUserIdAndReactionId);
-            }
-
-            var userReaction = await _repo.GetByIdAsync((Guid)userReactionId);
-
-            if (userReaction is null)
-            {
-                return Result.Failure<Guid>(ApplicationErrors.Reaction.IdNotFound);
-            }
-
-            await _repo.DeleteAsync(userReaction);
-
-            return Result.Success();
+            return Result.Success(summary);
         }
     }
 }

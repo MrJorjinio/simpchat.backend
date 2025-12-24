@@ -1,6 +1,7 @@
 ﻿using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Simpchat.Application.Common.Pagination;
 using Simpchat.Application.Extentions;
 using Simpchat.Application.Interfaces.Services;
 
@@ -130,6 +131,16 @@ namespace Simpchat.Web.Controllers
         public async Task<IActionResult> SearchAsync(string searchTerm)
         {
             var response = await _channelService.SearchAsync(searchTerm);
+            var apiResponse = response.ToApiResult();
+
+            return apiResponse.ToActionResult();
+        }
+
+        [HttpGet("search/paginated")]
+        [Authorize]
+        public async Task<IActionResult> SearchPaginatedAsync([FromQuery] SearchPageModel model)
+        {
+            var response = await _channelService.SearchPaginatedAsync(model.SearchTerm, model.Page, model.PageSize);
             var apiResponse = response.ToApiResult();
 
             return apiResponse.ToActionResult();

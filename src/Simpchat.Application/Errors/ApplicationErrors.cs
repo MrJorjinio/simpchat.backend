@@ -101,6 +101,62 @@ namespace Simpchat.Application.Errors
                 );
         }
 
+        public static class ChatBan
+        {
+            public static readonly Error UserBanned = new Error(
+                "Chat.Ban.UserBanned",
+                "You are banned from this chat"
+                );
+
+            public static readonly Error AlreadyBanned = new Error(
+                "Chat.Ban.AlreadyBanned",
+                "User is already banned from this chat"
+                );
+
+            public static readonly Error CannotBanSelf = new Error(
+                "Chat.Ban.CannotBanSelf",
+                "You cannot ban yourself"
+                );
+
+            public static readonly Error CannotBanOwner = new Error(
+                "Chat.Ban.CannotBanOwner",
+                "You cannot ban the owner of this chat"
+                );
+
+            public static readonly Error NotFound = new Error(
+                "Chat.Ban.NotFound",
+                "Ban record not found"
+                );
+        }
+
+        public static class UserBan
+        {
+            public static readonly Error UserBanned = new Error(
+                "User.Ban.UserBanned",
+                "You have been blocked by this user and cannot send messages or start conversations with them"
+                );
+
+            public static readonly Error AlreadyBanned = new Error(
+                "User.Ban.AlreadyBanned",
+                "You have already blocked this user"
+                );
+
+            public static readonly Error CannotBanSelf = new Error(
+                "User.Ban.CannotBanSelf",
+                "You cannot block yourself"
+                );
+
+            public static readonly Error NotFound = new Error(
+                "User.Ban.NotFound",
+                "Block record not found"
+                );
+
+            public static readonly Error CannotMessageBannedUser = new Error(
+                "User.Ban.CannotMessageBannedUser",
+                "You cannot send messages to a user you have blocked. Unblock them first."
+                );
+        }
+
         public static class Reaction
         {
             public static readonly Error IdNotFound = new Error(
@@ -114,6 +170,24 @@ namespace Simpchat.Application.Errors
             public static readonly Error IdNotFound = new Error(
                 "Message.IdNotFound",
                 "Message with given [ID] not found"
+                );
+        }
+
+        public static class MessagePinning
+        {
+            public static readonly Error AlreadyPinned = new Error(
+                "Message.Pinning.AlreadyPinned",
+                "Message is already pinned"
+                );
+
+            public static readonly Error NotPinned = new Error(
+                "Message.Pinning.NotPinned",
+                "Message is not pinned"
+                );
+
+            public static readonly Error PinLimitReached = new Error(
+                "Message.Pinning.PinLimitReached",
+                "Maximum number of pinned messages (50) has been reached for this chat"
                 );
         }
 

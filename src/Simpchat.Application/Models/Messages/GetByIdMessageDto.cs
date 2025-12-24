@@ -1,9 +1,4 @@
-﻿using Simpchat.Application.Models.Reactions;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using Simpchat.Application.Models.Reactions;
 
 namespace Simpchat.Application.Models.Messages
 {
@@ -18,9 +13,10 @@ namespace Simpchat.Application.Models.Messages
         public Guid? ReplyId { get; set; }
         public DateTimeOffset SentAt { get; set; }
         public bool IsSeen { get; set; }
+        public DateTimeOffset? SeenAt { get; set; }
         public bool IsNotificated { get; set; }
         public Guid NotificationId { get; set; }
-        public List<GetAllMessageReaction> MessageReactions { get; set; }
+        public List<MessageReactionDto> MessageReactions { get; set; } = new();
         public bool IsCurrentUser { get; set; }
     }
 }

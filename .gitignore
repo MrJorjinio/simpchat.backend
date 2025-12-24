@@ -420,3 +420,4 @@ FodyWeavers.xsd
 /src/Simpchat.Web/appsettings.Development.json
 
 .idea/
+minio_data/

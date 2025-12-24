@@ -1,4 +1,5 @@
-﻿using Simpchat.Application.Models.ApiResult;
+﻿using Simpchat.Application.Common.Pagination;
+using Simpchat.Application.Models.ApiResult;
 
 using Simpchat.Application.Models.Chats;
 using Simpchat.Application.Models.Files;
@@ -16,6 +17,7 @@ namespace Simpchat.Application.Interfaces.Services
     {
         Task<Result<List<GetAllUserDto>>> GetAllAsync();
         Task<Result<List<SearchChatResponseDto>>> SearchAsync(string term, Guid userId);
+        Task<Result<PaginationResult<SearchChatResponseDto>>> SearchPaginatedAsync(string term, Guid userId, int page, int pageSize);
         Task<Result<GetByIdUserDto>> GetByIdAsync(Guid userId, Guid currentUserId);
         Task<Result> UpdateAsync(Guid userId, UpdateUserDto updateUserInfoDto, UploadFileRequest avatar);
         Task<Result> SetLastSeenAsync(Guid userId);

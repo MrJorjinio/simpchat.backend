@@ -49,6 +49,28 @@ namespace Simpchat.Infrastructure.Persistence.Repositories
                 .ToListAsync();
         }
 
+        public async Task<(List<User> Items, int TotalCount)> SearchPaginatedAsync(string term, int page, int pageSize)
+        {
+            // Require at least 3 characters for meaningful search
+            if (string.IsNullOrWhiteSpace(term) || term.Length < 3)
+            {
+                return (new List<User>(), 0);
+            }
+
+            var query = _dbContext.Users
+                .Where(u => EF.Functions.ILike(u.Username, $"%{term}%"))
+                .OrderBy(u => u.Username);
+
+            var totalCount = await query.CountAsync();
+
+            var items = await query
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
+            return (items, totalCount);
+        }
+
         public async Task UpdateAsync(User entity)
         {
             _dbContext.Users.Update(entity);

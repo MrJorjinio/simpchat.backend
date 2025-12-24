@@ -42,5 +42,17 @@ namespace Simpchat.Infrastructure.Persistence.Repositories
             _dbContext.ChannelsSubscribers.Update(entity);
             await _dbContext.SaveChangesAsync();
         }
+
+        public async Task DeleteSubscriberAsync(Guid channelId, Guid userId)
+        {
+            var existingSubscriber = await _dbContext.ChannelsSubscribers
+                .FirstOrDefaultAsync(s => s.ChannelId == channelId && s.UserId == userId);
+
+            if (existingSubscriber != null)
+            {
+                _dbContext.ChannelsSubscribers.Remove(existingSubscriber);
+                await _dbContext.SaveChangesAsync();
+            }
+        }
     }
 }

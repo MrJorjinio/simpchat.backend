@@ -62,5 +62,14 @@ namespace Simpchat.Web.Controllers
 
             return apiResponse.ToActionResult();
         }
+
+        [HttpPut("reset-password-by-email")]
+        public async Task<IActionResult> ResetPasswordByEmailAsync(ResetPasswordByEmailDto resetPasswordByEmailDto)
+        {
+            var response = await _authService.ResetPasswordByEmailAsync(resetPasswordByEmailDto);
+            var apiResponse = response.ToApiResult();
+
+            return apiResponse.ToActionResult();
+        }
     }
 }

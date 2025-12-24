@@ -49,6 +49,20 @@ namespace Simpchat.Infrastructure.Persistence.Repositories
             return chatBan?.Id;
         }
 
+        public async Task<bool> IsUserBannedAsync(Guid chatId, Guid userId)
+        {
+            return await _dbContext.ChatBans
+                .AnyAsync(cb => cb.ChatId == chatId && cb.UserId == userId);
+        }
+
+        public async Task<List<ChatBan>> GetBannedUsersAsync(Guid chatId)
+        {
+            return await _dbContext.ChatBans
+                .Include(cb => cb.User)
+                .Where(cb => cb.ChatId == chatId)
+                .ToListAsync();
+        }
+
         public async Task UpdateAsync(ChatBan entity)
         {
             _dbContext.ChatBans.Update(entity);

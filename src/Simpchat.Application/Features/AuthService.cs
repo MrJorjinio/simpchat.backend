@@ -24,18 +24,19 @@ namespace Simpchat.Application.Features
         private readonly IValidator<LoginUserDto> _loginUserDto;
         private readonly IValidator<ResetPasswordDto> _resetPasswordValidator;
         private readonly IValidator<UpdatePasswordDto> _updatePasswordValidator;
+        private readonly IValidator<ResetPasswordByEmailDto> _resetPasswordByEmailValidator;
         private const string EmailRegex = @"^[^@\s]+@[^@\s]+\.[^@\s]+$";
         public AuthService(
             IJwtTokenGenerator jwtTokenGenerator,
             IPasswordHasher passwordHasher,
             IUserRepository userRepo,
             IGlobalRoleRepository globalRoleRepo,
-            IOtpService otpService
-,
+            IOtpService otpService,
             IValidator<RegisterUserDto> registerValidator,
             IValidator<LoginUserDto> loginUserDto,
             IValidator<ResetPasswordDto> resetPasswordValidator,
-            IValidator<UpdatePasswordDto> updatePasswordValidator)
+            IValidator<UpdatePasswordDto> updatePasswordValidator,
+            IValidator<ResetPasswordByEmailDto> resetPasswordByEmailValidator)
         {
             _jwtTokenGenerator = jwtTokenGenerator;
             _passwordHasher = passwordHasher;
@@ -46,6 +47,7 @@ namespace Simpchat.Application.Features
             _loginUserDto = loginUserDto;
             _resetPasswordValidator = resetPasswordValidator;
             _updatePasswordValidator = updatePasswordValidator;
+            _resetPasswordByEmailValidator = resetPasswordByEmailValidator;
         }
 
         public async Task<Result<string>> LoginAsync(LoginUserDto loginUserDto)
@@ -220,6 +222,46 @@ namespace Simpchat.Application.Features
             }
 
             var newPasswordHash = await _passwordHasher.EncryptAsync(updatePasswordDto.NewPassword, user.Salt);
+            user.PasswordHash = newPasswordHash;
+
+            await _userRepo.UpdateAsync(user);
+
+            return Result.Success();
+        }
+
+        public async Task<Result> ResetPasswordByEmailAsync(ResetPasswordByEmailDto resetPasswordByEmailDto)
+        {
+            var validationResult = await _resetPasswordByEmailValidator.ValidateAsync(resetPasswordByEmailDto);
+
+            if (!validationResult.IsValid)
+            {
+                var errors = validationResult.Errors
+                  .GroupBy(e => e.PropertyName)
+                  .ToDictionary(g => g.Key, g => g.Select(e => e.ErrorMessage).ToArray());
+
+                return Result.Failure(ApplicationErrors.Validation.Failed, errors);
+            }
+
+            var user = await _userRepo.GetByEmailAsync(resetPasswordByEmailDto.Email);
+
+            if (user is null)
+            {
+                return Result.Failure(ApplicationErrors.User.EmailNotFound);
+            }
+
+            var emailOtpCodeResult = await _otpService.ValidateEmailOtpAsync(resetPasswordByEmailDto.Email, resetPasswordByEmailDto.Otp);
+
+            if (emailOtpCodeResult.IsSuccess is false)
+            {
+                return Result.Failure(emailOtpCodeResult.Error);
+            }
+
+            if (emailOtpCodeResult.Value is false)
+            {
+                return Result.Failure(ApplicationErrors.Otp.Wrong);
+            }
+
+            var newPasswordHash = await _passwordHasher.EncryptAsync(resetPasswordByEmailDto.Password, user.Salt);
             user.PasswordHash = newPasswordHash;
 
             await _userRepo.UpdateAsync(user);

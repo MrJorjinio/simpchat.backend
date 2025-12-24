@@ -1,4 +1,5 @@
-﻿using Simpchat.Application.Errors;
+﻿using Simpchat.Application.Common.Pagination;
+using Simpchat.Application.Errors;
 using Simpchat.Application.Extentions;
 using Simpchat.Application.Interfaces.File;
 using Simpchat.Application.Interfaces.Repositories;
@@ -85,6 +86,37 @@ namespace Simpchat.Application.Features
             }
 
             return modeledUsers;
+        }
+
+        public async Task<Result<PaginationResult<SearchChatResponseDto>>> SearchPaginatedAsync(string term, Guid userId, int page, int pageSize)
+        {
+            var (users, totalCount) = await _userRepo.SearchPaginatedAsync(term, page, pageSize);
+
+            var modeledUsers = new List<SearchChatResponseDto>();
+
+            foreach (var user in users)
+            {
+                var conversationBetweenId = await _conversationRepo.GetConversationBetweenAsync(userId, user.Id);
+
+                var model = new SearchChatResponseDto
+                {
+                    EntityId = user.Id,
+                    DisplayName = user.Username,
+                    AvatarUrl = user.AvatarUrl,
+                    ChatType = ChatTypes.Conversation,
+                    ChatId = conversationBetweenId
+                };
+
+                modeledUsers.Add(model);
+            }
+
+            return new PaginationResult<SearchChatResponseDto>
+            {
+                Data = modeledUsers,
+                PageNumber = page,
+                PageSize = pageSize,
+                TotalCount = totalCount
+            };
         }
 
         public async Task<Result> SetLastSeenAsync(Guid userId)

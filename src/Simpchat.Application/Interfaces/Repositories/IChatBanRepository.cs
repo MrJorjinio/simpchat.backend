@@ -11,5 +11,7 @@ namespace Simpchat.Application.Interfaces.Repositories
     public interface IChatBanRepository : IBaseRepository<ChatBan>
     {
         Task<Guid?> GetIdAsync(Guid chatId, Guid userId);
+        Task<bool> IsUserBannedAsync(Guid chatId, Guid userId);
+        Task<List<ChatBan>> GetBannedUsersAsync(Guid chatId);
     }
 }

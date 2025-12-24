@@ -11,6 +11,6 @@ namespace Simpchat.Application.Models.Chats
     public class UpdateChatDto
     {
         public string Name { get; set; }
-        public string Description { get; set; }
+        public string? Description { get; set; }
     }
 }

@@ -127,14 +127,12 @@ namespace Simpchat.Application.Extentions
                 if (permissionRepository == null)
                     return false;
 
-                var allPermissions = await permissionRepository.GetAllAsync();
-                if (allPermissions == null)
+                // Use efficient query instead of loading all permissions
+                var userPermissions = await permissionRepository.GetUserChatPermissionsAsync(chatId, userId);
+                if (userPermissions == null || userPermissions.Count == 0)
                     return false;
 
-                return allPermissions.Any(p =>
-                    p.ChatId == chatId &&
-                    p.UserId == userId &&
-                    p.Permission.Name == permissionName);
+                return userPermissions.Any(p => p.Permission?.Name == permissionName);
             }
             catch
             {
@@ -153,16 +151,17 @@ namespace Simpchat.Application.Extentions
                 if (permissionRepository == null || permissionNames.Length == 0)
                     return false;
 
-                var allPermissions = await permissionRepository.GetAllAsync();
-                if (allPermissions == null)
+                // Use efficient query instead of loading all permissions
+                var userPermissions = await permissionRepository.GetUserChatPermissionsAsync(chatId, userId);
+                if (userPermissions == null || userPermissions.Count == 0)
                     return false;
 
-                var userPerms = allPermissions
-                    .Where(p => p.ChatId == chatId && p.UserId == userId)
+                var userPermNames = userPermissions
+                    .Where(p => p.Permission != null)
                     .Select(p => p.Permission.Name)
                     .ToList();
 
-                return permissionNames.All(perm => userPerms.Contains(perm));
+                return permissionNames.All(perm => userPermNames.Contains(perm));
             }
             catch
             {
@@ -181,16 +180,17 @@ namespace Simpchat.Application.Extentions
                 if (permissionRepository == null || permissionNames.Length == 0)
                     return false;
 
-                var allPermissions = await permissionRepository.GetAllAsync();
-                if (allPermissions == null)
+                // Use efficient query instead of loading all permissions
+                var userPermissions = await permissionRepository.GetUserChatPermissionsAsync(chatId, userId);
+                if (userPermissions == null || userPermissions.Count == 0)
                     return false;
 
-                var userPerms = allPermissions
-                    .Where(p => p.ChatId == chatId && p.UserId == userId)
+                var userPermNames = userPermissions
+                    .Where(p => p.Permission != null)
                     .Select(p => p.Permission.Name)
                     .ToList();
 
-                return permissionNames.Any(perm => userPerms.Contains(perm));
+                return permissionNames.Any(perm => userPermNames.Contains(perm));
             }
             catch
             {

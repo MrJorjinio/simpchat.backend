@@ -16,5 +16,9 @@ namespace Simpchat.Application.Interfaces.Services
         Task<Result<Guid>> SendMessageAsync(PostMessageDto postMessageDto, UploadFileRequest? uploadFileRequest);
         Task<Result> UpdateAsync(Guid messageId, UpdateMessageDto updateMessageDto, UploadFileRequest? uploadFileRequest, Guid userId);
         Task<Result> DeleteAsync(Guid messageId, Guid userId);
+        Task<Result> PinMessageAsync(Guid messageId, Guid userId);
+        Task<Result> UnpinMessageAsync(Guid messageId, Guid userId);
+        Task<Result<List<PinnedMessageDto>>> GetPinnedMessagesAsync(Guid chatId, Guid userId);
+        Task<Result<List<Guid>>> MarkMessagesAsSeenAsync(Guid chatId, Guid userId);
     }
 }

@@ -1,10 +1,9 @@
-﻿using FluentValidation;
+using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
 using Simpchat.Application.Features;
 using Simpchat.Application.Interfaces.Services;
 using Simpchat.Application.Models.Chats;
 using Simpchat.Application.Models.Messages;
-using Simpchat.Application.Models.Reactions;
 using Simpchat.Application.Models.Users;
 using Simpchat.Application.Validators;
 
@@ -31,9 +30,9 @@ namespace Simpchat.Application
             services.AddScoped<IMessageService, MessageService>();
             services.AddScoped<INotificationService, NotificationService>();
             services.AddScoped<IConversationService, ConversationService>();
-            services.AddScoped<IReactionService, ReactionService>();
             services.AddScoped<IMessageReactionService, MessageReactionService>();
             services.AddScoped<IChatBanService, ChatBanService>();
+            services.AddScoped<IUserBanService, UserBanService>();
             services.AddScoped<IPermissionService, PermissionService>();
             services.AddSingleton<IPresenceService, PresenceService>(); // SINGLETON for in-memory state
 
@@ -50,8 +49,7 @@ namespace Simpchat.Application
             services.AddScoped<IValidator<UpdateUserDto>, UpdateUserInfoValidator>();
             services.AddScoped<IValidator<ResetPasswordDto>, ResetPasswordValidator>();
             services.AddScoped<IValidator<UpdatePasswordDto>, UpdatePasswordValidator>();
-            services.AddScoped<IValidator<PostReactionDto>, PostReactionValidator>();
-            services.AddScoped<IValidator<UpdateReactionDto>, UpdateReactionValidator>();
+            services.AddScoped<IValidator<ResetPasswordByEmailDto>, ResetPasswordByEmailValidator>();
             services.AddScoped<IValidator<UpdateMessageDto>, UpdateMessageValidator>();
 
             return services;

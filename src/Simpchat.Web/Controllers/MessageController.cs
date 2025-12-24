@@ -51,6 +51,12 @@ namespace Simpchat.Web.Controllers
         {
             var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
 
+            // Ensure at least content or file is provided
+            if (string.IsNullOrWhiteSpace(messagePostDto.Content) && file == null)
+            {
+                return BadRequest(new { success = false, error = "Message must have either content or a file attachment" });
+            }
+
             // Validate file if present
             if (file != null)
             {
@@ -94,6 +100,11 @@ namespace Simpchat.Web.Controllers
 
                     if (message != null && messagePostDto.ChatId.HasValue)
                     {
+                        // Get sender details for the broadcast
+                        var senderResult = await _userService.GetByIdAsync(userId, userId);
+                        var senderUsername = senderResult.IsSuccess ? senderResult.Value.Username : "Unknown";
+                        var senderAvatarUrl = senderResult.IsSuccess ? senderResult.Value.AvatarUrl : null;
+
                         // Broadcast to chat group
                         await _hubContext.Clients.Group($"chat_{messagePostDto.ChatId.Value}")
                             .SendAsync("ReceiveMessage", new
@@ -101,10 +112,14 @@ namespace Simpchat.Web.Controllers
                                 messageId = message.Id,
                                 chatId = message.ChatId,
                                 senderId = userId,
+                                senderUsername = senderUsername,
+                                senderAvatarUrl = senderAvatarUrl,
                                 content = message.Content,
                                 fileUrl = message.FileUrl,
                                 replyId = message.ReplyId,
-                                sentAt = message.SentAt
+                                sentAt = message.SentAt,
+                                isSeen = false,
+                                seenAt = (DateTimeOffset?)null
                             });
 
                         // Broadcast notification to recipients
@@ -169,25 +184,130 @@ namespace Simpchat.Web.Controllers
             return apiResponse.ToActionResult();
         }
 
-        [HttpPost("reaction")]
+        /// <summary>
+        /// Toggle a reaction on a message. If the user already has this reaction, it will be removed.
+        /// If not, it will be added.
+        /// </summary>
+        /// <param name="messageId">The message ID</param>
+        /// <param name="reactionType">One of: Like, Love, Laugh, Sad, Angry</param>
+        [HttpPost("{messageId}/reactions/{reactionType}")]
         [Authorize]
-        public async Task<IActionResult> PutReactionAsync(Guid messageId, Guid reactionId)
+        public async Task<IActionResult> ToggleReactionAsync(Guid messageId, string reactionType)
         {
             var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
 
-            var response = await _messageReactionService.CreateAsync(messageId, reactionId, userId);
-            var apiResponse = response.ToApiResult();
+            // Parse the reaction type
+            if (!Enum.TryParse<Domain.Enums.ReactionType>(reactionType, ignoreCase: true, out var parsedReactionType))
+            {
+                return BadRequest(new { success = false, error = $"Invalid reaction type. Valid types are: {string.Join(", ", Enum.GetNames<Domain.Enums.ReactionType>())}" });
+            }
 
+            var response = await _messageReactionService.ToggleReactionAsync(messageId, parsedReactionType, userId);
+
+            if (response.IsSuccess)
+            {
+                // Broadcast reaction update via SignalR
+                var message = await _messageRepository.GetByIdAsync(messageId);
+                if (message != null)
+                {
+                    var wasAdded = response.Value;
+                    var groupName = $"chat_{message.ChatId}";
+                    var eventName = wasAdded ? "ReactionAdded" : "ReactionRemoved";
+                    Console.WriteLine($"[MessageController] Broadcasting {eventName} to group {groupName}");
+                    await _hubContext.Clients.Group(groupName)
+                        .SendAsync(eventName, new
+                        {
+                            messageId = messageId,
+                            chatId = message.ChatId,
+                            userId = userId,
+                            reactionType = reactionType
+                        });
+                    Console.WriteLine($"[MessageController] Broadcast sent successfully");
+                }
+            }
+
+            var apiResponse = response.ToApiResult();
             return apiResponse.ToActionResult();
         }
 
-        [HttpDelete("reaction")]
+        /// <summary>
+        /// Get all reactions for a message grouped by type
+        /// </summary>
+        [HttpGet("{messageId}/reactions")]
         [Authorize]
-        public async Task<IActionResult> DeleteReactionAsync(Guid messageId, Guid reactionId)
+        public async Task<IActionResult> GetMessageReactionsAsync(Guid messageId)
+        {
+            var response = await _messageReactionService.GetMessageReactionsAsync(messageId);
+            var apiResponse = response.ToApiResult();
+            return apiResponse.ToActionResult();
+        }
+
+        [HttpPost("{messageId}/pin")]
+        [Authorize]
+        public async Task<IActionResult> PinMessageAsync(Guid messageId)
         {
             var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
 
-            var response = await _messageReactionService.DeleteAsync(messageId, userId);
+            var response = await _messageService.PinMessageAsync(messageId, userId);
+
+            if (response.IsSuccess)
+            {
+                var message = await _messageRepository.GetByIdAsync(messageId);
+                if (message != null)
+                {
+                    var senderResult = await _userService.GetByIdAsync(userId, userId);
+                    await _hubContext.Clients.Group($"chat_{message.ChatId}")
+                        .SendAsync("MessagePinned", new
+                        {
+                            messageId = message.Id,
+                            chatId = message.ChatId,
+                            pinnedById = userId,
+                            pinnedByUsername = senderResult.IsSuccess ? senderResult.Value.Username : "Unknown",
+                            pinnedAt = message.PinnedAt
+                        });
+                }
+            }
+
+            var apiResponse = response.ToApiResult();
+            return apiResponse.ToActionResult();
+        }
+
+        [HttpPost("{messageId}/unpin")]
+        [Authorize]
+        public async Task<IActionResult> UnpinMessageAsync(Guid messageId)
+        {
+            var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+
+            // Get the message before unpinning to get the chatId
+            var message = await _messageRepository.GetByIdAsync(messageId);
+            var chatId = message?.ChatId;
+
+            var response = await _messageService.UnpinMessageAsync(messageId, userId);
+
+            if (response.IsSuccess && chatId.HasValue)
+            {
+                var senderResult = await _userService.GetByIdAsync(userId, userId);
+                await _hubContext.Clients.Group($"chat_{chatId.Value}")
+                    .SendAsync("MessageUnpinned", new
+                    {
+                        messageId = messageId,
+                        chatId = chatId.Value,
+                        unpinnedById = userId,
+                        unpinnedByUsername = senderResult.IsSuccess ? senderResult.Value.Username : "Unknown"
+                    });
+            }
+
+            var apiResponse = response.ToApiResult();
+            return apiResponse.ToActionResult();
+        }
+
+        [HttpGet("pinned/{chatId}")]
+        [Authorize]
+        public async Task<IActionResult> GetPinnedMessagesAsync(Guid chatId)
+        {
+            var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+
+            var response = await _messageService.GetPinnedMessagesAsync(chatId, userId);
             var apiResponse = response.ToApiResult();
 
             return apiResponse.ToActionResult();

@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.OpenApi.Extensions;
+using Simpchat.Application.Common.Pagination;
 using Simpchat.Application.Extentions;
 using Simpchat.Application.Interfaces.Services;
 
@@ -36,7 +37,7 @@ namespace Simpchat.Web.Controllers
             return apiResponse.ToActionResult();
         }
 
-        [HttpGet("{id}")]
+        [HttpGet("{id:guid}")]
         [Authorize]
         public async Task<IActionResult> GetByIdAsync(Guid id)
         {
@@ -55,6 +56,18 @@ namespace Simpchat.Web.Controllers
             var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
 
             var response = await _userService.SearchAsync(username, userId);
+            var apiResponse = response.ToApiResult();
+
+            return apiResponse.ToActionResult();
+        }
+
+        [HttpGet("search")]
+        [Authorize]
+        public async Task<IActionResult> SearchPaginatedAsync([FromQuery] SearchPageModel model)
+        {
+            var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+
+            var response = await _userService.SearchPaginatedAsync(model.SearchTerm, userId, model.Page, model.PageSize);
             var apiResponse = response.ToApiResult();
 
             return apiResponse.ToActionResult();
@@ -106,7 +119,7 @@ namespace Simpchat.Web.Controllers
             return apiResponse.ToActionResult();
         }
 
-        [HttpPut("{userId}")]
+        [HttpPut("{userId:guid}")]
         public async Task<IActionResult> UpdateAsync(Guid userId, [FromForm] UpdateUserDto model, IFormFile? file)
         {
             // Validate avatar file if present (images only)
@@ -137,7 +150,7 @@ namespace Simpchat.Web.Controllers
             return apiResponse.ToActionResult();
         }
 
-        [HttpDelete("{userId}")]
+        [HttpDelete("{userId:guid}")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> DeleteAsync(Guid userId)
         {
@@ -155,39 +168,6 @@ namespace Simpchat.Web.Controllers
             var apiResponse = response.ToApiResult();
 
             return apiResponse.ToActionResult();
-        }
-
-        [HttpPost("block/{blockedUserId}")]
-        [Authorize]
-        public async Task<IActionResult> BlockUserAsync(Guid blockedUserId)
-        {
-            var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
-
-            // TODO: Implement block logic in UserService
-            // For now, return success
-            return Ok(new { success = true, message = "User blocked successfully" });
-        }
-
-        [HttpPost("unblock/{blockedUserId}")]
-        [Authorize]
-        public async Task<IActionResult> UnblockUserAsync(Guid blockedUserId)
-        {
-            var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
-
-            // TODO: Implement unblock logic in UserService
-            // For now, return success
-            return Ok(new { success = true, message = "User unblocked successfully" });
-        }
-
-        [HttpGet("blocked")]
-        [Authorize]
-        public async Task<IActionResult> GetBlockedUsersAsync()
-        {
-            var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
-
-            // TODO: Implement get blocked users logic in UserService
-            // For now, return empty array
-            return Ok(new { success = true, data = new List<object>() });
         }
     }
 }

@@ -18,5 +18,6 @@ namespace Simpchat.Application.Models.Chats
         public LastMessageResponseDto? LastMessage { get; set; }
         public DateTimeOffset? UserLastMessage { get; set; }
         public bool IsOnline { get; set; }
+        public int ParticipantsCount { get; set; }
     }
 }

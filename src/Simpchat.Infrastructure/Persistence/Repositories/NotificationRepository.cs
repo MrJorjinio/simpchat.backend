@@ -22,6 +22,15 @@ namespace Simpchat.Infrastructure.Persistence.Repositories
             return entity.Id;
         }
 
+        public async Task CreateBatchAsync(List<Notification> notifications)
+        {
+            if (notifications.Count == 0) return;
+
+            // Single database round-trip for all notifications
+            await _dbContext.Notifications.AddRangeAsync(notifications);
+            await _dbContext.SaveChangesAsync();
+        }
+
         public async Task DeleteAsync(Notification entity)
         {
             _dbContext.Notifications.Remove(entity);
@@ -87,6 +96,40 @@ namespace Simpchat.Infrastructure.Persistence.Repositories
                 .FirstOrDefaultAsync(n => n.MessageId == messageId && n.ReceiverId == userId);
 
             return notification?.Id;
+        }
+
+        public async Task<List<Guid>> GetIdsByMessageIdsAsync(List<Guid> messageIds, Guid userId)
+        {
+            return await _dbContext.Notifications
+                .Where(n => messageIds.Contains(n.MessageId) && n.ReceiverId == userId)
+                .Select(n => n.Id)
+                .ToListAsync();
+        }
+
+        public async Task MarkSeenByMessageIdsAsync(List<Guid> messageIds, Guid userId)
+        {
+            // Single SQL UPDATE - no loops, no fetching
+            await _dbContext.Notifications
+                .Where(n => messageIds.Contains(n.MessageId) && n.ReceiverId == userId && !n.IsSeen)
+                .ExecuteUpdateAsync(s => s.SetProperty(n => n.IsSeen, true));
+        }
+
+        public async Task<Dictionary<Guid, Guid>> GetNotificationMapByMessageIdsAsync(List<Guid> messageIds, Guid userId)
+        {
+            // Single query to get MessageId -> NotificationId map
+            return await _dbContext.Notifications
+                .Where(n => messageIds.Contains(n.MessageId) && n.ReceiverId == userId)
+                .ToDictionaryAsync(n => n.MessageId, n => n.Id);
+        }
+
+        public async Task<HashSet<Guid>> GetUnseenMessageIdsAsync(List<Guid> messageIds, Guid userId)
+        {
+            // Single query to get message IDs with unseen notifications
+            var unseenMessageIds = await _dbContext.Notifications
+                .Where(n => messageIds.Contains(n.MessageId) && n.ReceiverId == userId && !n.IsSeen)
+                .Select(n => n.MessageId)
+                .ToListAsync();
+            return new HashSet<Guid>(unseenMessageIds);
         }
 
         public async Task<List<Notification>?> GetMultipleByIdsAsync(List<Guid> notificationIds)

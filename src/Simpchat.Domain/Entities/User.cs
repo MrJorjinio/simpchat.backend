@@ -28,5 +28,15 @@ namespace Simpchat.Domain.Entities
         public ICollection<Notification> Notifications { get; set; }
         public ICollection<ChatBan> ChatBans { get; set; }
         public ICollection<UserOtp> UserOtps { get; set; }
-    }   
+
+        /// <summary>
+        /// Users that this user has banned/blocked
+        /// </summary>
+        public ICollection<UserBan> BlockedUsers { get; set; }
+
+        /// <summary>
+        /// Users that have banned/blocked this user
+        /// </summary>
+        public ICollection<UserBan> BlockedByUsers { get; set; }
+    }
 }

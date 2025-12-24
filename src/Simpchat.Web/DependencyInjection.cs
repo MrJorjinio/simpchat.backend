@@ -1,8 +1,10 @@
 ﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using Simpchat.Application.Interfaces.Services;
 using Simpchat.Shared.Config;
 using Simpchat.Web.Middlewares;
+using Simpchat.Web.Services;
 using System.Text;
 
 namespace Simpchat.Web
@@ -13,8 +15,16 @@ namespace Simpchat.Web
         {
             services
                 .AddJwtAuthentication(config)
-                .AddSwagger();
+                .AddSwagger()
+                .AddChatHubService();
 
+            return services;
+        }
+
+        private static IServiceCollection AddChatHubService(this IServiceCollection services)
+        {
+            services.AddScoped<IChatHubService, ChatHubService>();
+            services.AddScoped<IRealTimeNotificationService, RealTimeNotificationService>();
             return services;
         }
 

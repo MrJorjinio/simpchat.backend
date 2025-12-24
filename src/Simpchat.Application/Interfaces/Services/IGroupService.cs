@@ -1,4 +1,5 @@
-﻿using Simpchat.Application.Models.ApiResult;
+﻿using Simpchat.Application.Common.Pagination;
+using Simpchat.Application.Models.ApiResult;
 
 using Simpchat.Application.Models.Chats;
 using Simpchat.Application.Models.Files;
@@ -19,6 +20,7 @@ namespace Simpchat.Application.Interfaces.Services
         Task<Result> DeleteAsync(Guid groupId, Guid userId);
         Task<Result> DeleteMemberAsync(Guid userId, Guid groupId, Guid requesterId);
         Task<Result<List<SearchChatResponseDto>?>> SearchAsync(string searchTerm);
+        Task<Result<PaginationResult<SearchChatResponseDto>>> SearchPaginatedAsync(string searchTerm, int page, int pageSize);
         Task<Result> UpdateAsync(Guid groupId, UpdateChatDto updateChatDto, UploadFileRequest? avatar, Guid userId);
         Task<Result<List<UserChatResponseDto>>> GetUserParticipatedAsync(Guid userId);
     }

@@ -1,12 +1,6 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Simpchat.Domain.Entities;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Reflection.Emit;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Simpchat.Infrastructure.Persistence.Configurations.Messages
 {
@@ -14,14 +8,20 @@ namespace Simpchat.Infrastructure.Persistence.Configurations.Messages
     {
         public void Configure(EntityTypeBuilder<MessageReaction> builder)
         {
-            builder.Property(mr => mr.Id)
-                .HasDefaultValueSql("gen_random_uuid()");
+            // Primary key: (MessageId, ReactionType, UserId) - uniquely identifies a user's reaction to a message
+            // A user can only have one instance of the same reaction type per message
+            builder.HasKey(mr => new { mr.MessageId, mr.ReactionType, mr.UserId });
 
-            // Primary key: (MessageId, ReactionId, UserId) - uniquely identifies a user's reaction to a message
-            builder.HasKey(mr => new { mr.MessageId, mr.ReactionId, mr.UserId });
+            // Ignore the Id property from BaseEntity since we use composite key
+            builder.Ignore(mr => mr.Id);
 
-            // Id is unique but not part of primary key
-            builder.HasIndex(mr => mr.Id).IsUnique();
+            // Store enum as string for readability
+            builder.Property(mr => mr.ReactionType)
+                .HasConversion<string>()
+                .HasMaxLength(20);
+
+            // Index for efficient querying by message
+            builder.HasIndex(mr => mr.MessageId);
         }
     }
 }

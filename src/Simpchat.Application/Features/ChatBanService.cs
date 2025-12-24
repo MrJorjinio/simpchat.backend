@@ -15,7 +15,9 @@ namespace Simpchat.Application.Features
         private readonly IUserRepository _userRepo;
         private readonly IGroupRepository _groupRepo;
         private readonly IChannelRepository _channelRepo;
+        private readonly IChannelSubscriberRepository _channelSubscriberRepo;
         private readonly IChatUserPermissionRepository _chatUserPermissionRepo;
+        private readonly IConversationRepository _conversationRepo;
 
         public ChatBanService(
             IChatBanRepository repo,
@@ -23,14 +25,18 @@ namespace Simpchat.Application.Features
             IUserRepository userRepo,
             IGroupRepository groupRepo,
             IChannelRepository channelRepo,
-            IChatUserPermissionRepository chatUserPermissionRepo)
+            IChannelSubscriberRepository channelSubscriberRepo,
+            IChatUserPermissionRepository chatUserPermissionRepo,
+            IConversationRepository conversationRepo)
         {
             _repo = repo;
             _chatRepo = chatRepo;
             _userRepo = userRepo;
             _groupRepo = groupRepo;
             _channelRepo = channelRepo;
+            _channelSubscriberRepo = channelSubscriberRepo;
             _chatUserPermissionRepo = chatUserPermissionRepo;
+            _conversationRepo = conversationRepo;
         }
 
         public async Task<Result<Guid>> BanUserAsync(Guid chatId, Guid userId, Guid requesterId)
@@ -40,6 +46,12 @@ namespace Simpchat.Application.Features
             if (chat is null)
             {
                 return Result.Failure<Guid>(ApplicationErrors.Chat.IdNotFound);
+            }
+
+            // Cannot ban yourself
+            if (userId == requesterId)
+            {
+                return Result.Failure<Guid>(ApplicationErrors.ChatBan.CannotBanSelf);
             }
 
             if (!await CanBanUserAsync(chatId, requesterId, chat.Type))
@@ -54,6 +66,13 @@ namespace Simpchat.Application.Features
                 return Result.Failure<Guid>(ApplicationErrors.User.IdNotFound);
             }
 
+            // Check if user is already banned
+            if (await _repo.IsUserBannedAsync(chatId, userId))
+            {
+                return Result.Failure<Guid>(ApplicationErrors.ChatBan.AlreadyBanned);
+            }
+
+            // Create the ban
             var chatBan = new ChatBan
             {
                 ChatId = chatId,
@@ -62,7 +81,40 @@ namespace Simpchat.Application.Features
 
             await _repo.CreateAsync(chatBan);
 
+            // Remove user from the chat based on chat type
+            await RemoveUserFromChatAsync(chatId, userId, chat.Type);
+
             return chatBan.Id;
+        }
+
+        private async Task RemoveUserFromChatAsync(Guid chatId, Guid userId, ChatTypes chatType)
+        {
+            switch (chatType)
+            {
+                case ChatTypes.Group:
+                    // Use repository method to properly delete the member
+                    var groupMember = new GroupMember
+                    {
+                        GroupId = chatId,
+                        UserId = userId
+                    };
+                    await _groupRepo.DeleteMemberAsync(groupMember);
+                    break;
+
+                case ChatTypes.Channel:
+                    // Use repository method to properly delete the subscriber
+                    await _channelSubscriberRepo.DeleteSubscriberAsync(chatId, userId);
+                    break;
+
+                case ChatTypes.Conversation:
+                    // For conversations, delete the entire conversation
+                    var conversation = await _conversationRepo.GetByIdAsync(chatId);
+                    if (conversation != null)
+                    {
+                        await _conversationRepo.DeleteAsync(conversation);
+                    }
+                    break;
+            }
         }
 
         public async Task<Result> DeleteAsync(Guid chatId, Guid userId, Guid requesterId)
@@ -79,22 +131,50 @@ namespace Simpchat.Application.Features
                 return Result.Failure(ApplicationErrors.ChatPermission.Denied);
             }
 
-            var user = await _userRepo.GetByIdAsync(userId);
-
-            if (user is null)
+            // Find the existing ban
+            var banId = await _repo.GetIdAsync(chatId, userId);
+            if (banId == null)
             {
-                return Result.Failure(ApplicationErrors.User.IdNotFound);
+                return Result.Failure(ApplicationErrors.ChatBan.NotFound);
             }
 
-            var chatBan = new ChatBan
+            var chatBan = await _repo.GetByIdAsync(banId.Value);
+            if (chatBan == null)
             {
-                ChatId = chatId,
-                UserId = userId
-            };
+                return Result.Failure(ApplicationErrors.ChatBan.NotFound);
+            }
 
             await _repo.DeleteAsync(chatBan);
 
             return Result.Success();
+        }
+
+        public async Task<Result<List<BannedUserDto>>> GetBannedUsersAsync(Guid chatId, Guid requesterId)
+        {
+            var chat = await _chatRepo.GetByIdAsync(chatId);
+
+            if (chat is null)
+            {
+                return Result.Failure<List<BannedUserDto>>(ApplicationErrors.Chat.IdNotFound);
+            }
+
+            // Only admins/owners can view banned users
+            if (!await CanBanUserAsync(chatId, requesterId, chat.Type))
+            {
+                return Result.Failure<List<BannedUserDto>>(ApplicationErrors.ChatPermission.Denied);
+            }
+
+            var bannedUsers = await _repo.GetBannedUsersAsync(chatId);
+
+            var result = bannedUsers.Select(b => new BannedUserDto
+            {
+                UserId = b.UserId,
+                Username = b.User?.Username ?? "Unknown",
+                AvatarUrl = b.User?.AvatarUrl,
+                BannedAt = b.BannedAt
+            }).ToList();
+
+            return result;
         }
 
         private async Task<bool> CanBanUserAsync(Guid chatId, Guid requesterId, ChatTypes chatType)

@@ -9,5 +9,6 @@ namespace Simpchat.Application.Common.Repository
     public interface ISearchableRepository<T> where T : class
     {
         public Task<List<T>> SearchAsync(string term);
+        public Task<(List<T> Items, int TotalCount)> SearchPaginatedAsync(string term, int page, int pageSize);
     }
 }

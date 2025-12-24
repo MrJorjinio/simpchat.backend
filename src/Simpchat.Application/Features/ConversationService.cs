@@ -85,12 +85,16 @@ namespace Simpchat.Application.Features
                     {
                         Content = lastMessage?.Content,
                         FileUrl = lastMessage?.FileUrl,
+                        SenderId = lastMessage?.SenderId,
                         SenderUsername = lastMessage?.Sender.Username,
-                        SentAt = lastMessage?.SentAt
+                        SentAt = lastMessage?.SentAt,
+                        ReplyId = lastMessage?.ReplyId,
+                        IsSeen = lastMessage?.IsSeen ?? false
                     },
                     NotificationsCount = notificationsCount,
                     UserLastMessage = lastUserSendedMessage?.SentAt,
-                    IsOnline = isOnline
+                    IsOnline = isOnline,
+                    ParticipantsCount = 2 // DMs always have 2 participants
                 };
 
                 modeledConversations.Add(modeledConversation);

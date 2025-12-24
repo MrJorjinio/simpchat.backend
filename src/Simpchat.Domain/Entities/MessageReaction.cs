@@ -1,4 +1,5 @@
-﻿using Simpchat.Domain.Common;
+using Simpchat.Domain.Common;
+using Simpchat.Domain.Enums;
 
 namespace Simpchat.Domain.Entities
 {
@@ -6,10 +7,9 @@ namespace Simpchat.Domain.Entities
     {
         public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
         public Guid UserId { get; set; }
-        public Guid ReactionId { get; set; }
         public Guid MessageId { get; set; }
+        public ReactionType ReactionType { get; set; }
         public User User { get; set; }
-        public Reaction Reaction { get; set; }
         public Message Message { get; set; }
     }
 }
