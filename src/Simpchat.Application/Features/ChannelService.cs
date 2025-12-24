@@ -101,7 +101,7 @@ namespace Simpchat.Application.Features
 
             if (channel.IsChannelSubscriber(userId))
             {
-                return Result.Failure(ApplicationErrors.User.NotParticipatedInChat);
+                return Result.Failure(ApplicationErrors.User.AlreadyMember);
             }
 
             var channelSubscriber = new ChannelSubscriber
@@ -152,7 +152,7 @@ namespace Simpchat.Application.Features
                 return Result.Failure(new Error("Channel.Private", "Cannot join private channel"));
 
             if (channel.IsChannelSubscriber(userId))
-                return Result.Failure(ApplicationErrors.User.NotParticipatedInChat);
+                return Result.Failure(ApplicationErrors.User.AlreadyMember);
 
             var channelSubscriber = new ChannelSubscriber
             {

@@ -106,7 +106,7 @@ namespace Simpchat.Application.Features
 
             if (group.IsGroupMember(userId))
             {
-                return Result.Failure(ApplicationErrors.User.NotParticipatedInChat);
+                return Result.Failure(ApplicationErrors.User.AlreadyMember);
             }
 
             await _repo.AddMemberAsync(userId, groupId);
@@ -153,7 +153,7 @@ namespace Simpchat.Application.Features
                 return Result.Failure(new Error("Group.Private", "Cannot join private group"));
 
             if (group.IsGroupMember(userId))
-                return Result.Failure(ApplicationErrors.User.NotParticipatedInChat);
+                return Result.Failure(ApplicationErrors.User.AlreadyMember);
 
             await _repo.AddMemberAsync(userId, groupId);
 

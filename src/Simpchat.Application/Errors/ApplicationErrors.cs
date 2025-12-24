@@ -47,13 +47,18 @@ namespace Simpchat.Application.Errors
                 );
 
             public static readonly Error EmailAlreadyExists = new Error(
-                "User.UsernameAlreadyExists",
+                "User.EmailAlreadyExists",
                 "User with given [EMAIL] already exists"
                 );
 
             public static readonly Error NotParticipatedInChat = new Error(
                 "User.NotParticipatedInChat",
                 "User not participated in [CHAT] to perform [ACTION]"
+                );
+
+            public static readonly Error AlreadyMember = new Error(
+                "User.AlreadyMember",
+                "User is already a member of this chat"
                 );
 
             public static readonly Error CanNotDeleteAdmin = new Error(
